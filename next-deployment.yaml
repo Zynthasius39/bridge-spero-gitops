@@ -1,0 +1,31 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: next-deployment
+  namespace: brsp
+  labels:
+    app.kubernetes.io/name: next
+    app.kubernetes.io/environment: prod
+    app.kubernetes.io/component: frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: next
+      app.kubernetes.io/environment: prod
+      app.kubernetes.io/component: frontend
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: next
+        app.kubernetes.io/environment: prod
+        app.kubernetes.io/component: frontend
+    spec:
+      containers:
+        - name: next
+          image: ghcr.io/zynthasius31/brsp:latest
+          ports:
+            - containerPort: 3000
+      imagePullSecrets:
+        - name: brsp-cr-token
