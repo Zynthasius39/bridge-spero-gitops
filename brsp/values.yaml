@@ -1,0 +1,58 @@
+---
+environment:
+  - dev
+  - prod
+
+next:
+  containerPort: 3000
+  replicaCount: 3
+  image:
+    repository: "ghcr.io/zynthasius31/brsp"
+    pullPolicy: Always
+  resources:
+    limits:
+      cpu: 500m
+      memory: 256Mi
+    requests:
+      cpu: 500m
+      memory: 256Mi
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  service:
+    type: ClusterIP
+    port: 80
+
+cloudflared:
+  replicaCount: 1
+  image:
+    repository: "docker.io/cloudflare/cloudflared"
+    tag: latest
+    pullPolicy: Always
+  resources:
+    limits:
+      cpu: 100m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+ingress:
+  enabled: true
+  annotations: {}
+  hosts:
+    - host: dev.bridgespero.com
+      paths:
+        - path: /
+          pathType: Prefix
+          service:
+            app: next
+            environment: dev
+            port: 80
+
+secrets:
+  cr: brsp-cr-token
+  cf: brsp-tunnel-token

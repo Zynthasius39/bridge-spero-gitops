@@ -1,0 +1,26 @@
+{{- range .Values.environment }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $.Release.Name }}-next-{{ . }}
+  labels:
+    app.kubernetes.io/name: {{ template "brsp.name" $ }}
+    app.kubernetes.io/environment: {{ . }}
+    app.kubernetes.io/component: frontend
+    helm.sh/chart: {{ template "brsp.chart" $ }}
+    release: {{ $.Release.Name }}
+    heritage: {{ $.Release.Service }}
+spec:
+  type: {{ $.Values.next.service.type }}
+  ports:
+    - port: {{ $.Values.next.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: next
+    app.kubernetes.io/environment: {{ . }}
+    app.kubernetes.io/component: frontend
+    release: {{ $.Release.Name }}
+---
+{{- end }}

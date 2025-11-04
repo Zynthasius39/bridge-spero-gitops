@@ -1,0 +1,13 @@
+apiVersion: v2
+name: brsp
+version: 0.1.0
+description: BridgeSpero Helm Chart
+type: application
+
+maintainers:
+  - name: Zynthasius39
+    email: super.alekberov+gh@proton.me
+    url: https://github.com/Zynthasius39
+
+icon: http://dev.bridgespero.com/logo.svg
+appVersion: 0.1.0

@@ -1,0 +1,57 @@
+{{- range .Values.environment }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $.Release.Name }}-next-{{ . }}
+  labels:
+    app.kubernetes.io/name: {{ template "brsp.name" $ }}
+    app.kubernetes.io/environment: {{ . }}
+    app.kubernetes.io/component: frontend
+    helm.sh/chart: {{ template "brsp.chart" $ }}
+    release: {{ $.Release.Name }}
+    heritage: {{ $.Release.Service }}
+spec:
+  replicas: {{ $.Values.next.replicaCount }}
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: next
+      app.kubernetes.io/environment: {{ . }}
+      app.kubernetes.io/component: frontend
+      release: {{ $.Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: next
+        app.kubernetes.io/environment: {{ . }}
+        app.kubernetes.io/component: frontend
+        release: {{ $.Release.Name }}
+    spec:
+      containers:
+        - name: {{ $.Chart.Name }}-next-{{ . }}
+          image: "{{ $.Values.next.image.repository }}:{{ template "brsp.next.image.tag" . }}"
+          imagePullPolicy: {{ $.Values.next.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ $.Values.next.containerPort }}
+              protocol: TCP
+          resources:
+  {{- with $.Values.next }}
+{{ toYaml .resources | indent 12 }}
+    {{- with .nodeSelector }}
+      nodeSelector:
+{{ toYaml . | indent 8 }}
+    {{- end }}
+    {{- with .affinity }}
+      affinity:
+{{ toYaml . | indent 8 }}
+    {{- end }}
+    {{- with .tolerations }}
+      tolerations:
+{{ toYaml . | indent 8 }}
+    {{- end }}
+      imagePullSecrets:
+        - name: {{ $.Values.secrets.cr }}
+  {{- end }}
+---
+{{- end }}
