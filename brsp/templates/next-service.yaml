@@ -5,7 +5,7 @@ metadata:
   name: {{ $.Release.Name }}-next-{{ . }}
   labels:
     app.kubernetes.io/name: {{ template "brsp.name" $ }}
-    app.kubernetes.io/environment: {{ . }}
+    app.kubernetes.io/environment: {{ if eq . "dev" }}dev{{ else }}bluegreen{{ end }}
     app.kubernetes.io/component: frontend
     helm.sh/chart: {{ template "brsp.chart" $ }}
     release: {{ $.Release.Name }}
@@ -19,7 +19,7 @@ spec:
       name: http
   selector:
     app.kubernetes.io/name: next
-    app.kubernetes.io/environment: {{ . }}
+    app.kubernetes.io/environment: {{ if eq . "dev" }}dev{{ else }}bluegreen{{ end }}
     app.kubernetes.io/component: frontend
     release: {{ $.Release.Name }}
 ---

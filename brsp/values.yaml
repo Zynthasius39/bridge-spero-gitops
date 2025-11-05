@@ -1,13 +1,15 @@
 ---
 environment:
   - dev
-  - prod
+  - bluegreen-preview
+  - bluegreen-active
 
 next:
   containerPort: 3000
   replicaCount: 1
   image:
     repository: "ghcr.io/zynthasius31/brsp"
+    tag: 0.1.0
     pullPolicy: Always
   resources:
     limits:
@@ -24,6 +26,7 @@ next:
     port: 80
 
 cloudflared:
+  enabled: false
   replicaCount: 1
   image:
     repository: "docker.io/cloudflare/cloudflared"
