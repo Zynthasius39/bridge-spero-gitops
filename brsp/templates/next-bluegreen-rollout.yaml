@@ -28,7 +28,7 @@ spec:
     spec:
       containers:
         - name: {{ .Chart.Name }}-next
-          image: "{{ .Values.next.image.repository }}:{{ .Values.next.image.tag.prod }}"
+          image: "{{ .Values.next.image.repository }}:{{ .Values.next.image.tag.bluegreen }}"
           imagePullPolicy: {{ .Values.next.image.pullPolicy }}
           ports:
             - name: http

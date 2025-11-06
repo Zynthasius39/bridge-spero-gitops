@@ -57,6 +57,14 @@ ingress:
             app: next
             environment: dev
             port: 80
+    - host: prev.bridgespero.com
+      paths:
+        - path: /
+          pathType: Prefix
+          service:
+            app: next
+            environment: bluegreen-preview
+            port: 80
 
 secrets:
   cr: brsp-cr-token
