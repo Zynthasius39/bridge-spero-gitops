@@ -32,13 +32,6 @@ Create chart name and version as used by the chart label.
 {{- end -}}
 
 {{/*
-Environment dependant image tag
-*/}}
-{{- define "brsp.next.image.tag" -}}
-{{ if eq . "dev" }}dev-{{ end }}latest
-{{- end -}}
-
-{{/*
 Service name
 */}}
 {{- define "brsp.service.name" -}}
