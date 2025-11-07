@@ -8,9 +8,9 @@ next:
   replicaCount: 1
   image:
     repository: "ghcr.io/zynthasius31/brsp"
-    tag: 
+    tag:
       dev: dev-0.1.0
-      bluegreen: 0.1.4
+      bluegreen: 0.1.5
     pullPolicy: Always
   resources:
     limits:
