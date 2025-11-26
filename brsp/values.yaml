@@ -1,4 +1,6 @@
 ---
+global: {}
+  # storageClass: jellybean-nfs
 environment:
   - dev
   - bluegreen-preview
@@ -62,6 +64,14 @@ ingress:
             app: next
             environment: bluegreen-preview
             port: 80
+redis:
+  image:
+    standalone:
+      repository: docker.io/library/redis
+      tag: latest
+    sentinel:
+      repository: docker.io/library/redis
+      tag: latest
 secrets:
   cr: brsp-cr-token
   cf: brsp-tunnel-token

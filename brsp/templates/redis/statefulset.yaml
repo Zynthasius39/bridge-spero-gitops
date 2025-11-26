@@ -1,0 +1,301 @@
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis-node
+  labels:
+    app.kubernetes.io/instance: redis
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/component: node
+spec:
+  replicas: 2
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: redis
+      app.kubernetes.io/name: redis
+      app.kubernetes.io/component: node
+  serviceName: redis-headless
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: redis
+        app.kubernetes.io/name: redis
+        app.kubernetes.io/component: node
+    spec:
+      securityContext:
+        fsGroup: {{ .Values.redis.fsGroup }}
+        fsGroupChangePolicy: Always
+        supplementalGroups: []
+        sysctls: []
+      {{/* serviceAccountName: redis */}}
+      affinity:
+        podAffinity:
+          
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: redis
+                    app.kubernetes.io/name: redis
+                    app.kubernetes.io/component: node
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+        nodeAffinity:
+          
+      enableServiceLinks: true
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: redis
+          image: "{{ .Values.redis.image.standalone.repository }}:{{ .Values.redis.image.standalone.tag }}"  # XXX: Verify
+          imagePullPolicy: "IfNotPresent"
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /bin/bash
+                  - -ec
+                  - /scripts/prestop-redis.sh
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            readOnlyRootFilesystem: true
+            runAsGroup: {{ .Values.redis.runAsGroup | default 1001 }}
+            runAsNonRoot: {{ .Values.redis.runAsNonRoot | default true }}
+            runAsUser: {{ .Values.redis.runAsUser | default 1001 }}
+            seLinuxOptions: {}
+            seccompProfile:
+              type: RuntimeDefault
+          command: ['/bin/bash', '-ec']
+          args:
+            - /scripts/start-node.sh
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: REDIS_MASTER_PORT_NUMBER
+              value: {{ .Values.redis.masterPort | default "6379" | quote }}
+            - name: ALLOW_EMPTY_PASSWORD
+              value: {{ .Values.redis.allowEmptyPassword | default "yes" | quote }}
+            - name: OPENSSL_FIPS
+              value: {{ .Values.redis.opensslFips | default "yes" | quote }}
+            - name: REDIS_TLS_ENABLED
+              value: {{ .Values.redis.tlsEnabled | default "no" | quote }}
+            - name: REDIS_PORT
+              value: {{ .Values.redis.port | default "6379" | quote }}
+            - name: REDIS_SENTINEL_TLS_ENABLED
+              value: {{ .Values.redis.sentinelTlsEnabled | default "no" | quote }}
+            - name: REDIS_SENTINEL_PORT
+              value: {{ .Values.redis.sentinelPort | default "26379" | quote }}
+            - name: REDIS_DATA_DIR
+              value: {{ .Values.redis.dataDir | default "/data" }}
+          ports:
+            - name: redis
+              containerPort: {{ .Values.redis.port | default "6379" }}
+          startupProbe:
+            failureThreshold: 22
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+            exec:
+              command:
+                - /bin/bash
+                - -ec
+                - "/health/ping_liveness_local.sh 5"
+          livenessProbe:
+            initialDelaySeconds: 20
+            periodSeconds: 5
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 5
+            exec:
+              command:
+                - /bin/bash
+                - -ec
+                - "/health/ping_liveness_local.sh 5"
+          readinessProbe:
+            initialDelaySeconds: 20
+            periodSeconds: 5
+            timeoutSeconds: 1
+            successThreshold: 1
+            failureThreshold: 5
+            exec:
+              command:
+                - /bin/bash
+                - -ec
+                - "/health/ping_readiness_local.sh 1"
+          resources:
+            limits:
+                cpu: 1
+                memory: 256Mi
+            requests:
+                cpu: 1
+                memory: 256Mi
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+            - name: health
+              mountPath: /health
+            - name: sentinel-data
+              mountPath: /etc/redis-sentinel
+            - name: redis-data
+              mountPath: /data
+            - name: config
+              mountPath: /etc/redis-mnt
+            - name: empty-dir
+              mountPath: /etc/redis
+              subPath: app-conf-dir
+            - name: empty-dir
+              mountPath: /tmp
+              subPath: tmp-dir
+        - name: sentinel
+          image: "{{ .Values.redis.image.sentinel.repository }}:{{ .Values.redis.image.sentinel.tag }}"  # XXX: Verify
+          imagePullPolicy: "IfNotPresent"
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /bin/bash
+                  - -ec
+                  - /scripts/prestop-sentinel.sh
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            readOnlyRootFilesystem: true
+            runAsGroup: 1001
+            runAsNonRoot: true
+            runAsUser: 1001
+            seLinuxOptions: {}
+            seccompProfile:
+              type: RuntimeDefault
+          command: ['/bin/bash', '-ec']
+          args:
+            - /scripts/start-sentinel.sh
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: ALLOW_EMPTY_PASSWORD
+              value: {{ .Values.redis.allowEmptyPassword | default "yes" | quote }}
+            - name: OPENSSL_FIPS
+              value: {{ .Values.redis.opensslFips | default "yes" | quote }}
+            - name: REDIS_SENTINEL_TLS_ENABLED
+              value: {{ .Values.redis.sentinelTlsEnabled | default "no" | quote }}
+            - name: REDIS_SENTINEL_PORT
+              value: {{ .Values.redis.sentinelPort | default "26379" | quote }}
+          ports:
+            - name: redis-sentinel
+              containerPort: {{ .Values.redis.sentinelPort | default "26379" }}
+          startupProbe:
+            failureThreshold: 22
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+            exec:
+              command:
+                - /bin/bash
+                - -ec
+                - "/health/ping_sentinel.sh 5"
+          livenessProbe:
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 6
+            exec:
+              command:
+                - /bin/bash
+                - -ec
+                - "/health/ping_sentinel.sh 5"
+          readinessProbe:
+            initialDelaySeconds: 20
+            periodSeconds: 5
+            timeoutSeconds: 1
+            successThreshold: 1
+            failureThreshold: 6
+            exec:
+              command:
+                - /bin/bash
+                - -ec
+                - "/health/ping_sentinel.sh 1"
+          resources:
+            limits:
+                cpu: 1
+                memory: 256Mi
+            requests:
+                cpu: 1
+                memory: 256Mi
+          volumeMounts:
+            - name: empty-dir
+              mountPath: /tmp
+              subPath: tmp-dir
+            - name: scripts
+              mountPath: /scripts
+            - name: health
+              mountPath: /health
+            - name: sentinel-data
+              mountPath: /etc/redis-sentinel
+            - name: redis-data
+              mountPath: /data
+            - name: config
+              mountPath: /etc/redis-mnt
+      volumes:
+        - name: scripts
+          configMap:
+            name: redis-scripts
+            defaultMode: 0755
+        - name: health
+          configMap:
+            name: redis-health
+            defaultMode: 0755
+        - name: config
+          configMap:
+            name: redis-configuration
+        - name: empty-dir
+          emptyDir: {}
+  volumeClaimTemplates:
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: redis-data
+        labels:
+          app.kubernetes.io/instance: redis
+          app.kubernetes.io/name: redis
+          app.kubernetes.io/component: node
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: "1Gi"
+        {{- if .Values.global.storageClass }}
+        storageClassName: {{ .Values.global.storageClass }}
+        {{ end }}
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: sentinel-data
+        labels:
+          app.kubernetes.io/instance: redis
+          app.kubernetes.io/name: redis
+          app.kubernetes.io/component: node
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: "1Gi"
+        {{- if .Values.global.storageClass }}
+        storageClassName: {{ .Values.global.storageClass }}
+        {{ end }}
