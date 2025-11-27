@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Release.Name }}-next-dev
+  name: next-dev
   labels:
     app.kubernetes.io/name: {{ template "brsp.name" . }}
     app.kubernetes.io/environment: dev
@@ -27,7 +27,7 @@ spec:
         release: {{ .Release.Name }}
     spec:
       containers:
-        - name: {{ .Chart.Name }}-next-dev
+        - name: next-dev
           image: "{{ .Values.next.image.repository }}:{{ .Values.next.image.tag.dev }}"
           imagePullPolicy: {{ .Values.next.image.pullPolicy }}
           ports:

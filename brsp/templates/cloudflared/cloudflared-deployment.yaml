@@ -2,7 +2,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Release.Name }}-cf
+  name: cloudflared
   labels:
     app.kubernetes.io/name: {{ template "brsp.name" . }}
     helm.sh/chart: {{ template "brsp.chart" . }}
@@ -26,7 +26,7 @@ spec:
           - name: net.ipv4.ping_group_range
             value: "65532 65532"
       containers:
-        - name: {{ .Chart.Name }}-cf
+        - name: cloudflared
           image: "{{ .Values.cloudflared.image.repository }}:{{ .Values.cloudflared.image.tag }}"
           imagePullPolicy: {{ $.Values.cloudflared.image.pullPolicy }}
           env:

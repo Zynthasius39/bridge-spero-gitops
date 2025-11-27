@@ -65,13 +65,29 @@ ingress:
             environment: bluegreen-preview
             port: 80
 redis:
+  replicaCount: 1
   image:
-    standalone:
+    node:
       repository: docker.io/library/redis
       tag: latest
     sentinel:
       repository: docker.io/library/redis
       tag: latest
+  resources:
+    node:
+      limits:
+        cpu: 500m
+        memory: 512Mi
+      requests:
+        cpu: 500m
+        memory: 512Mi
+    sentinel:
+      limits:
+        cpu: 100m
+        memory: 128Mi
+      requests:
+        cpu: 100m
+        memory: 128Mi
 secrets:
   cr: brsp-cr-token
   cf: brsp-tunnel-token

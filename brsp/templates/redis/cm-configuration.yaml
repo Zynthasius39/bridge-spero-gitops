@@ -22,7 +22,7 @@ data:
   sentinel.conf: |-
     dir "/tmp"
     port 26379
-    sentinel monitor mymaster redis-node-0.redis-headless.default.svc.cluster.local 6379 2
+    sentinel monitor mymaster {{ template "redis.statefulSet.name" . }}-0.{{ template "redis.serviceHeadless.name" . }}.default.svc.cluster.local {{ template "redis.port" . }} 2
     sentinel down-after-milliseconds mymaster 60000
     sentinel failover-timeout mymaster 180000
     sentinel parallel-syncs mymaster 1

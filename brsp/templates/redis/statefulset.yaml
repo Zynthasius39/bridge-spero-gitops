@@ -2,28 +2,34 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: redis-node
+  name: {{ template "redis.statefulSet.name" . }}
   labels:
+    app.kubernetes.io/name: {{ template "brsp.name" . }}
     app.kubernetes.io/instance: redis
-    app.kubernetes.io/name: redis
     app.kubernetes.io/component: node
+    app.kubernetes.io/environment: node
+    helm.sh/chart: {{ template "brsp.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
 spec:
-  replicas: 2
+  replicas: {{ .Values.redis.replicaCount }}
   revisionHistoryLimit: 10
   selector:
     matchLabels:
-      app.kubernetes.io/instance: redis
       app.kubernetes.io/name: redis
+      app.kubernetes.io/instance: redis
       app.kubernetes.io/component: node
+      release: {{ .Release.Name }}
   serviceName: redis-headless
   updateStrategy:
     type: RollingUpdate
   template:
     metadata:
       labels:
-        app.kubernetes.io/instance: redis
         app.kubernetes.io/name: redis
+        app.kubernetes.io/instance: redis
         app.kubernetes.io/component: node
+        release: {{ .Release.Name }}
     spec:
       securityContext:
         fsGroup: {{ .Values.redis.fsGroup }}
@@ -42,6 +48,7 @@ spec:
                     app.kubernetes.io/instance: redis
                     app.kubernetes.io/name: redis
                     app.kubernetes.io/component: node
+                    release: {{ .Release.Name }}
                 topologyKey: kubernetes.io/hostname
               weight: 1
         nodeAffinity:
@@ -50,8 +57,8 @@ spec:
       terminationGracePeriodSeconds: 30
       containers:
         - name: redis
-          image: "{{ .Values.redis.image.standalone.repository }}:{{ .Values.redis.image.standalone.tag }}"  # XXX: Verify
-          imagePullPolicy: "IfNotPresent"
+          image: "{{ .Values.redis.image.node.repository }}:{{ .Values.redis.image.node.tag }}"
+          imagePullPolicy: {{ .Values.redis.pullPolicy | default "IfNotPresent" }}
           lifecycle:
             preStop:
               exec:
@@ -103,41 +110,36 @@ spec:
             initialDelaySeconds: 10
             periodSeconds: 10
             successThreshold: 1
-            timeoutSeconds: 5
+            timeoutSeconds: {{ template "redis.startupProbe.timeoutSeconds" . }}
             exec:
               command:
                 - /bin/bash
                 - -ec
-                - "/health/ping_liveness_local.sh 5"
+                - "/health/ping_liveness_local.sh {{ template "redis.startupProbe.timeoutSeconds" . }}"
           livenessProbe:
             initialDelaySeconds: 20
             periodSeconds: 5
-            timeoutSeconds: 5
+            timeoutSeconds: {{ template "redis.livenessProbe.timeoutSeconds" . }}
             successThreshold: 1
             failureThreshold: 5
             exec:
               command:
                 - /bin/bash
                 - -ec
-                - "/health/ping_liveness_local.sh 5"
+                - "/health/ping_liveness_local.sh {{ template "redis.livenessProbe.timeoutSeconds" . }}"
           readinessProbe:
             initialDelaySeconds: 20
             periodSeconds: 5
-            timeoutSeconds: 1
+            timeoutSeconds: {{ template "redis.readinessProbe.timeoutSeconds" . }}
             successThreshold: 1
             failureThreshold: 5
             exec:
               command:
                 - /bin/bash
                 - -ec
-                - "/health/ping_readiness_local.sh 1"
+                - "/health/ping_readiness_local.sh {{ template "redis.readinessProbe.timeoutSeconds" . }}"
           resources:
-            limits:
-                cpu: 1
-                memory: 256Mi
-            requests:
-                cpu: 1
-                memory: 256Mi
+{{ toYaml .Values.redis.resources.node | indent 12 }}
           volumeMounts:
             - name: scripts
               mountPath: /scripts
@@ -156,7 +158,7 @@ spec:
               mountPath: /tmp
               subPath: tmp-dir
         - name: sentinel
-          image: "{{ .Values.redis.image.sentinel.repository }}:{{ .Values.redis.image.sentinel.tag }}"  # XXX: Verify
+          image: "{{ .Values.redis.image.sentinel.repository }}:{{ .Values.redis.image.sentinel.tag }}"
           imagePullPolicy: "IfNotPresent"
           lifecycle:
             preStop:
@@ -201,41 +203,36 @@ spec:
             initialDelaySeconds: 10
             periodSeconds: 10
             successThreshold: 1
-            timeoutSeconds: 5
+            timeoutSeconds: {{ template "redis.startupProbe.timeoutSeconds" . }}
             exec:
               command:
                 - /bin/bash
                 - -ec
-                - "/health/ping_sentinel.sh 5"
+                - "/health/ping_sentinel.sh {{ template "redis.startupProbe.timeoutSeconds" . }}"
           livenessProbe:
             initialDelaySeconds: 20
             periodSeconds: 10
-            timeoutSeconds: 5
+            timeoutSeconds: {{ template "redis.livenessProbe.timeoutSeconds" . }}
             successThreshold: 1
             failureThreshold: 6
             exec:
               command:
                 - /bin/bash
                 - -ec
-                - "/health/ping_sentinel.sh 5"
+                - "/health/ping_sentinel.sh {{ template "redis.livenessProbe.timeoutSeconds" . }}"
           readinessProbe:
             initialDelaySeconds: 20
             periodSeconds: 5
-            timeoutSeconds: 1
+            timeoutSeconds: {{ template "redis.readinessProbe.timeoutSeconds" . }}
             successThreshold: 1
             failureThreshold: 6
             exec:
               command:
                 - /bin/bash
                 - -ec
-                - "/health/ping_sentinel.sh 1"
+                - "/health/ping_sentinel.sh {{ template "redis.readinessProbe.timeoutSeconds" . }}"
           resources:
-            limits:
-                cpu: 1
-                memory: 256Mi
-            requests:
-                cpu: 1
-                memory: 256Mi
+{{ toYaml .Values.redis.resources.sentinel | indent 12 }}
           volumeMounts:
             - name: empty-dir
               mountPath: /tmp
