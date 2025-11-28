@@ -4,27 +4,30 @@ metadata:
   name: next-dev
   labels:
     app.kubernetes.io/name: {{ template "brsp.name" . }}
-    app.kubernetes.io/environment: dev
-    app.kubernetes.io/component: frontend
+    app.kubernetes.io/component: next
     helm.sh/chart: {{ template "brsp.chart" . }}
+    environment: dev
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
+    tier: frontend
 spec:
   replicas: {{ .Values.next.replicaCount }}
   revisionHistoryLimit: 3
   selector:
     matchLabels:
-      app.kubernetes.io/name: next
-      app.kubernetes.io/environment: dev
-      app.kubernetes.io/component: frontend
+      app.kubernetes.io/name: {{ template "brsp.name" . }}
+      app.kubernetes.io/component: next
+      environment: dev
       release: {{ .Release.Name }}
+      tier: frontend
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: next
-        app.kubernetes.io/environment: dev
-        app.kubernetes.io/component: frontend
+        app.kubernetes.io/name: {{ template "brsp.name" . }}
+        app.kubernetes.io/component: next
+        environment: dev
         release: {{ .Release.Name }}
+        tier: frontend
     spec:
       containers:
         - name: next-dev

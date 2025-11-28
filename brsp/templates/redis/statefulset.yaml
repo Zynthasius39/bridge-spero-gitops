@@ -5,31 +5,35 @@ metadata:
   name: {{ template "redis.statefulSet.name" . }}
   labels:
     app.kubernetes.io/name: {{ template "brsp.name" . }}
-    app.kubernetes.io/instance: redis
-    app.kubernetes.io/component: node
-    app.kubernetes.io/environment: node
+    app.kubernetes.io/component: redis
     helm.sh/chart: {{ template "brsp.chart" . }}
+    environment: bluegreen
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
+    tier: data
 spec:
   replicas: {{ .Values.redis.replicaCount }}
   revisionHistoryLimit: 10
   selector:
     matchLabels:
-      app.kubernetes.io/name: redis
-      app.kubernetes.io/instance: redis
-      app.kubernetes.io/component: node
+      app.kubernetes.io/name: {{ template "brsp.name" . }}
+      app.kubernetes.io/component: redis
+      helm.sh/chart: {{ template "brsp.chart" . }}
+      environment: bluegreen
       release: {{ .Release.Name }}
+      tier: data
   serviceName: redis-headless
   updateStrategy:
     type: RollingUpdate
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: redis
-        app.kubernetes.io/instance: redis
-        app.kubernetes.io/component: node
+        app.kubernetes.io/name: {{ template "brsp.name" . }}
+        app.kubernetes.io/component: redis
+        helm.sh/chart: {{ template "brsp.chart" . }}
+        environment: bluegreen
         release: {{ .Release.Name }}
+        tier: data
     spec:
       securityContext:
         fsGroup: {{ .Values.redis.fsGroup }}

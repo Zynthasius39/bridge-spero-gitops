@@ -5,11 +5,12 @@ metadata:
   name: next-{{ . }}
   labels:
     app.kubernetes.io/name: {{ template "brsp.name" $ }}
-    app.kubernetes.io/environment: {{ if eq . "dev" }}dev{{ else }}bluegreen{{ end }}
-    app.kubernetes.io/component: frontend
+    app.kubernetes.io/component: next
     helm.sh/chart: {{ template "brsp.chart" $ }}
+    environment: {{ if eq . "dev" }}dev{{ else }}bluegreen{{ end }}
     release: {{ $.Release.Name }}
     heritage: {{ $.Release.Service }}
+    tier: frontend
 spec:
   type: {{ $.Values.next.service.type }}
   ports:
@@ -18,9 +19,10 @@ spec:
       protocol: TCP
       name: http
   selector:
-    app.kubernetes.io/name: next
-    app.kubernetes.io/environment: {{ if eq . "dev" }}dev{{ else }}bluegreen{{ end }}
-    app.kubernetes.io/component: frontend
+    app.kubernetes.io/name: {{ template "brsp.name" $ }}
+    app.kubernetes.io/component: next
+    environment: {{ if eq . "dev" }}dev{{ else }}bluegreen{{ end }}
     release: {{ $.Release.Name }}
+    tier: frontend
 ---
 {{- end }}

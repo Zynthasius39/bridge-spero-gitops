@@ -5,21 +5,27 @@ metadata:
   name: cloudflared
   labels:
     app.kubernetes.io/name: {{ template "brsp.name" . }}
+    app.kubernetes.io/component: cloudflared
     helm.sh/chart: {{ template "brsp.chart" . }}
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
+    tier: edge
 spec:
   replicas: {{ .Values.cloudflared.replicaCount }}
   revisionHistoryLimit: 3
   selector:
     matchLabels:
-      app.kubernetes.io/name: cloudflared
+      app.kubernetes.io/name: {{ template "brsp.name" . }}
+      app.kubernetes.io/component: cloudflared
       release: {{ .Release.Name }}
+      tier: edge
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: cloudflared
+        app.kubernetes.io/name: {{ template "brsp.name" . }}
+        app.kubernetes.io/component: cloudflared
         release: {{ .Release.Name }}
+        tier: edge
     spec:
       securityContext:
         sysctls:
