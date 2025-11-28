@@ -102,3 +102,15 @@ redis-headless
 1
 {{- end -}}
 {{- end -}}
+
+{{/*
+Postgres
+*/}}
+
+{{- define "postgres.storage.storageClass" -}}
+{{- if ((.Values.postgres).storage).storageClass -}}
+{{ ((.Values.postgres).storage).storageClass }}
+{{- else if (.Values.global).storageClass -}}
+{{ (.Values.global).storageClass }}
+{{- end -}}
+{{- end -}}

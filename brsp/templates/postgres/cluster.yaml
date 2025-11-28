@@ -1,0 +1,19 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: cluster-example
+spec:
+  {{- if (.Values.postgres).imageName }}
+  imageName: {{ (.Values.postgres).imageName }}
+  {{- end }}
+  instances: {{ (.Values.postgres).instances | default "1" }}
+
+  storage:
+    {{- if $s := include "postgres.storage.storageClass" . }}
+    storageClass: {{ $s }}
+    {{- end }}
+    size: {{ ((.Values.postgres).storage).size | default "1Gi" }}
+  {{- if (.Values.postgres).resources }}
+  resources:
+{{ .Values.postgres.resources | toYaml | indent 4 }}
+  {{- end }}

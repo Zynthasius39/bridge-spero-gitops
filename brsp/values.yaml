@@ -1,6 +1,16 @@
 ---
 global: {}
   # storageClass: jellybean-nfs
+postgres:
+  imageName: "docker.io/library/postgres:18.1-alpine3.22@sha256:154ea39af68ff30dec041cd1f1b5600009993724c811dbadde54126eb10bedd1"
+  instances: 3
+  resources:
+    limits:
+      cpu: 500m
+      memory: 256Mi
+    requests:
+      cpu: 500m
+      memory: 256Mi
 environment:
   - dev
   - bluegreen-preview
