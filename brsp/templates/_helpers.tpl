@@ -31,17 +31,18 @@ Create chart name and version as used by the chart label.
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 
-{{/*
-Service name
-*/}}
+{{/* Ingress service name */}}
 {{- define "brsp.service.name" -}}
 {{ .root.Release.Name }}-{{ .path.service.app }}{{ if .path.service.environment}}-{{ .path.service.environment }}{{ end }}
 {{- end -}}
 
+{{/* Environment */}}
+{{- define "brsp.environment" -}}
+{{ if eq . "dev" }}dev{{ else }}bluegreen{{ end }}
+{{- end -}}
 
-{{/*
-Redis
-*/}}
+
+{{/* Redis */}}
 
 {{- define "redis.statefulSet.name" -}}
 {{- if .Values.redis.statefulSet -}}
@@ -60,52 +61,27 @@ redis-node
 {{- end -}}
 
 {{- define "redis.service.name" -}}
-{{- if .Values.redis.service -}}
-{{ .Values.redis.service.name | default "redis" }}
-{{- else -}}
-redis
-{{- end -}}
+{{ ((.Values.redis).service).name | default "redis" }}
 {{- end -}}
 
 {{- define "redis.serviceHeadless.name" -}}
-{{- if .Values.redis.serviceHeadless -}}
-{{ .Values.redis.serviceHeadless.name | default "redis" }}
-{{- else -}}
-redis-headless
-{{- end -}}
+{{ ((.Values.redis).serviceHeadless).name | default "redis-headless" }}
 {{- end -}}
 
 {{- define "redis.startupProbe.timeoutSeconds" -}}
-{{- if .Values.redis.startupProbe -}}
-{{- if .Values.redis.livenessProbe -}}
-{{ .Values.redis.startupProbe.timeoutSeconds | default .Values.redis.livenessProbe.timeoutSeconds | default "5" }}
-{{- else -}}
-{{ .Values.redis.startupProbe.timeoutSeconds | default "5" }}
-{{- end -}}
-{{- else -}}
-5
-{{- end -}}
+{{ ((.Values.redis).startupProbe).timeoutSeconds | default ((.Values.redis).livenessProbe).timeoutSeconds | default "5" }}
 {{- end -}}
 
 {{- define "redis.livenessProbe.timeoutSeconds" -}}
-{{- if .Values.redis.livenessProbe -}}
-{{ .Values.redis.livenessProbe.timeoutSeconds | default "5" }}
-{{- else -}}
-5
-{{- end -}}
+{{ ((.Values.redis).livenessProbe).timeoutSeconds | default "5" }}
 {{- end -}}
 
 {{- define "redis.readinessProbe.timeoutSeconds" -}}
-{{- if .Values.redis.readinessProbe -}}
-{{ .Values.redis.readinessProbe.timeoutSeconds | default "1" }}
-{{- else -}}
-1
-{{- end -}}
+{{ ((.Values.redis).readinessProbe).timeoutSeconds | default "1" }}
 {{- end -}}
 
-{{/*
-Postgres
-*/}}
+
+{{/* Postgres */}}
 
 {{- define "postgres.storage.storageClass" -}}
 {{- if ((.Values.postgres).storage).storageClass -}}

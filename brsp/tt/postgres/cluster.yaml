@@ -1,0 +1,43 @@
+{{- $pg := .Values.postgres -}}
+{{- range $env := .Values.environment }}
+{{- with $ }}
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: cluster
+  labels:
+    app.kubernetes.io/name: {{ template "brsp.name" . }}
+    app.kubernetes.io/component: postgres
+    helm.sh/chart: {{ template "brsp.chart" . }}
+    environment: {{ template "brsp.environment" $env }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+    tier: data
+spec:
+  {{- if (.Values.postgres).imageName }}
+  imageName: {{ ($pg).imageName }}
+  {{- end }}
+  {{- if kindIs "float64" $pg.instances }}
+  instances: {{ $pg.instances }}
+  {{- else }}
+  instances: {{ if eq $env "dev" }}{{ (($pg).instances).dev | default "1" }}{{ else }}{{ (($pg).instances).bluegreen }}{{ end }}
+  {{- end }}
+  storage:
+    {{- if $s := include "postgres.storage.storageClass" . }}
+    storageClass: {{ $s }}
+    {{- end }}
+    size: {{ (($pg).storage).size | default "1Gi" }}
+  bootstrap:
+    initdb:
+      database: brsp
+      owner: brsp
+      secret:
+        name: db-user-secret
+    
+  {{- if ($pg).resources }}
+  resources:
+{{ $pg.resources | toYaml | indent 4 }}
+  {{- end }}
+---
+{{- end }}
+{{- end }}

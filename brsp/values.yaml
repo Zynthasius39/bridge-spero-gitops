@@ -2,8 +2,8 @@
 global: {}
   # storageClass: jellybean-nfs
 postgres:
-  imageName: "docker.io/library/postgres:18.1-alpine3.22@sha256:154ea39af68ff30dec041cd1f1b5600009993724c811dbadde54126eb10bedd1"
-  instances: 3
+  imageName: "ghcr.io/cloudnative-pg/postgresql:18.1-202511240807-minimal-trixie@sha256:6f52f3adc69a4416300f5cabc511ed334b585fd5f8bb7df33bb0003202efea13"
+  instances: 1
   resources:
     limits:
       cpu: 500m

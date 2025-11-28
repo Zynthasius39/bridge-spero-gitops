@@ -4,7 +4,7 @@ metadata:
   name: next-bluegreen
   labels:
     app.kubernetes.io/name: {{ template "brsp.name" . }}
-    app.kubernetes.io/component: frontend
+    app.kubernetes.io/component: next
     helm.sh/chart: {{ template "brsp.chart" . }}
     environment: bluegreen
     release: {{ .Release.Name }}

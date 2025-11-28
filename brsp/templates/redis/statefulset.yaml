@@ -1,13 +1,14 @@
----
+{{- range $env := .Values.environment }}
+{{- with $ }}
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: {{ template "redis.statefulSet.name" . }}
+  name: {{ template "redis.statefulSet.name" . }}-{{ template "brsp.environment" $env }}
   labels:
     app.kubernetes.io/name: {{ template "brsp.name" . }}
     app.kubernetes.io/component: redis
     helm.sh/chart: {{ template "brsp.chart" . }}
-    environment: bluegreen
+    environment: {{ template "brsp.environment" $env }}
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
     tier: data
@@ -19,10 +20,10 @@ spec:
       app.kubernetes.io/name: {{ template "brsp.name" . }}
       app.kubernetes.io/component: redis
       helm.sh/chart: {{ template "brsp.chart" . }}
-      environment: bluegreen
+      environment: {{ template "brsp.environment" $env }}
       release: {{ .Release.Name }}
       tier: data
-  serviceName: redis-headless
+  serviceName: {{ template "redis.serviceHeadless.name" . }}-{{ template "brsp.environment" $env }}
   updateStrategy:
     type: RollingUpdate
   template:
@@ -31,7 +32,7 @@ spec:
         app.kubernetes.io/name: {{ template "brsp.name" . }}
         app.kubernetes.io/component: redis
         helm.sh/chart: {{ template "brsp.chart" . }}
-        environment: bluegreen
+        environment: {{ template "brsp.environment" $env }}
         release: {{ .Release.Name }}
         tier: data
     spec:
@@ -49,10 +50,12 @@ spec:
             - podAffinityTerm:
                 labelSelector:
                   matchLabels:
-                    app.kubernetes.io/instance: redis
-                    app.kubernetes.io/name: redis
-                    app.kubernetes.io/component: node
+                    app.kubernetes.io/name: {{ template "brsp.name" . }}
+                    app.kubernetes.io/component: redis
+                    helm.sh/chart: {{ template "brsp.chart" . }}
+                    environment: {{ template "brsp.environment" $env }}
                     release: {{ .Release.Name }}
+                    tier: data
                 topologyKey: kubernetes.io/hostname
               weight: 1
         nodeAffinity:
@@ -90,6 +93,8 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
+            - name: BRSP_ENV
+              value: {{ template "brsp.environment" $env }}
             - name: REDIS_MASTER_PORT_NUMBER
               value: {{ .Values.redis.masterPort | default "6379" | quote }}
             - name: ALLOW_EMPTY_PASSWORD
@@ -191,6 +196,8 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
+            - name: BRSP_ENV
+              value: {{ template "brsp.environment" $env }}
             - name: ALLOW_EMPTY_PASSWORD
               value: {{ .Values.redis.allowEmptyPassword | default "yes" | quote }}
             - name: OPENSSL_FIPS
@@ -271,9 +278,12 @@ spec:
       metadata:
         name: redis-data
         labels:
-          app.kubernetes.io/instance: redis
-          app.kubernetes.io/name: redis
-          app.kubernetes.io/component: node
+          app.kubernetes.io/name: {{ template "brsp.name" . }}
+          app.kubernetes.io/component: redis
+          helm.sh/chart: {{ template "brsp.chart" . }}
+          environment: {{ template "brsp.environment" $env }}
+          release: {{ .Release.Name }}
+          tier: data
       spec:
         accessModes:
           - "ReadWriteOnce"
@@ -288,9 +298,12 @@ spec:
       metadata:
         name: sentinel-data
         labels:
-          app.kubernetes.io/instance: redis
-          app.kubernetes.io/name: redis
-          app.kubernetes.io/component: node
+          app.kubernetes.io/name: {{ template "brsp.name" . }}
+          app.kubernetes.io/component: redis
+          helm.sh/chart: {{ template "brsp.chart" . }}
+          environment: {{ template "brsp.environment" $env }}
+          release: {{ .Release.Name }}
+          tier: data
       spec:
         accessModes:
           - "ReadWriteOnce"
@@ -300,3 +313,6 @@ spec:
         {{- if .Values.global.storageClass }}
         storageClassName: {{ .Values.global.storageClass }}
         {{ end }}
+---
+{{- end }}
+{{- end }}

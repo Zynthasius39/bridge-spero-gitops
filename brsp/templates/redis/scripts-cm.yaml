@@ -10,8 +10,12 @@ kind: ConfigMap
 metadata:
   name: redis-scripts
   labels:
-    app.kubernetes.io/instance: redis
-    app.kubernetes.io/name: redis
+    app.kubernetes.io/name: {{ template "brsp.name" . }}
+    app.kubernetes.io/component: redis
+    helm.sh/chart: {{ template "brsp.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+    tier: data
 data:
   common.sh: |-
     # Copyright Broadcom, Inc. All Rights Reserved.
@@ -173,7 +177,7 @@ data:
     if [ -n "$REDIS_EXTERNAL_MASTER_HOST" ]; then
         REDIS_SERVICE="$REDIS_EXTERNAL_MASTER_HOST"
     else
-        REDIS_SERVICE="{{ template "redis.service.name" . }}.default.svc.cluster.local"
+        REDIS_SERVICE="{{ template "redis.service.name" . }}-$BRSP_ENV.default.svc.cluster.local"
     fi
 
     SENTINEL_SERVICE_PORT=$(get_port "redis" "SENTINEL")
@@ -211,7 +215,7 @@ data:
         info "about to run the command: $sentinel_info_command"
         retry_while "eval $sentinel_info_command" 2 5
     }
-    HEADLESS_SERVICE="{{ template "redis.serviceHeadless.name" . }}.default.svc.cluster.local"
+    HEADLESS_SERVICE="{{ template "redis.serviceHeadless.name" . }}-$BRSP_ENV.default.svc.cluster.local"
 
     [[ -f $REDIS_PASSWORD_FILE ]] && export REDIS_PASSWORD="$(< "${REDIS_PASSWORD_FILE}")"
     [[ -f $REDIS_MASTER_PASSWORD_FILE ]] && export REDIS_MASTER_PASSWORD="$(< "${REDIS_MASTER_PASSWORD_FILE}")"
@@ -291,8 +295,8 @@ data:
   start-sentinel.sh: |-
     #!/bin/bash
 
-    HEADLESS_SERVICE="{{ template "redis.serviceHeadless.name" . }}.default.svc.cluster.local"
-    REDIS_SERVICE="{{ template "redis.service.name" . }}.default.svc.cluster.local"
+    HEADLESS_SERVICE="{{ template "redis.serviceHeadless.name" . }}-$BRSP_ENV.default.svc.cluster.local"
+    REDIS_SERVICE="{{ template "redis.service.name" . }}-$BRSP_ENV.default.svc.cluster.local"
 
     . /scripts/common.sh
 
@@ -444,7 +448,7 @@ data:
   prestop-sentinel.sh: |-
     #!/bin/bash
 
-    HEADLESS_SERVICE="{{ template "redis.serviceHeadless.name" . }}.default.svc.cluster.local"
+    HEADLESS_SERVICE="{{ template "redis.serviceHeadless.name" . }}-$BRSP_ENV.default.svc.cluster.local"
 
     . /scripts/common.sh
 
@@ -512,7 +516,7 @@ data:
         echo "REDIS_ROLE: $REDIS_ROLE"
         [[ "$REDIS_ROLE" == "master" ]]
     }
-    HEADLESS_SERVICE="{{ template "redis.serviceHeadless.name" . }}.default.svc.cluster.local"
+    HEADLESS_SERVICE="{{ template "redis.serviceHeadless.name" . }}-$BRSP_ENV.default.svc.cluster.local"
 
     get_full_hostname() {
         hostname="$1"
