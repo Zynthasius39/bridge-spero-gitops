@@ -4,7 +4,7 @@
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
 metadata:
-  name: cluster-{{ $env }}
+  name: {{ template "postgres.service.name" . }}-{{ $env }}
   labels:
     app.kubernetes.io/name: {{ template "brsp.name" . }}
     app.kubernetes.io/component: postgres
@@ -29,10 +29,10 @@ spec:
     size: {{ (($pg).storage).size | default "1Gi" }}
   bootstrap:
     initdb:
-      database: brsp
-      owner: brsp
+      database: {{ .Values.postgres.initdb.database }}
+      owner: {{ .Values.postgres.initdb.owner }}
       secret:
-        name: db-user-secret
+        name: {{ .Values.secrets.postgres }}
     
   {{- if ($pg).resources }}
   resources:

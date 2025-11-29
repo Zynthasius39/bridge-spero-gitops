@@ -83,6 +83,10 @@ redis-node
 
 {{/* Postgres */}}
 
+{{- define "postgres.service.name" -}}
+{{ ((.Values.postgres).service).name | default "cluster" }}
+{{- end -}}
+
 {{- define "postgres.storage.storageClass" -}}
 {{- if ((.Values.postgres).storage).storageClass -}}
 {{ ((.Values.postgres).storage).storageClass }}
