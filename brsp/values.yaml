@@ -13,11 +13,32 @@ postgres:
       memory: 256Mi
 environment:
   - dev
+  - bluegreen
+environmentByService:
+  - dev
   - bluegreen-preview
   - bluegreen-active
+spring:
+  containerPort: 8080
+  replicaCount: 1
+  image:
+    repository: "ghcr.io/zynthasius31/brsp-spring"
+    tag:
+      dev: "dev-0.1"
+      bluegreen: "0.1"
+    pullPolicy: Always
+  resources: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  service:
+    type: ClusterIP
+    port: 80
 next:
   containerPort: 3000
-  replicaCount: 1
+  replicaCount:
+    dev: 1
+    bluegreen: 1
   image:
     repository: "ghcr.io/zynthasius31/brsp"
     tag:

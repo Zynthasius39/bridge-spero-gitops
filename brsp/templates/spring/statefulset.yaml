@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: spring-dev
+  labels:
+    app.kubernetes.io/name: {{ template "brsp.name" . }}
+    app.kubernetes.io/component: spring
+    helm.sh/chart: {{ template "brsp.chart" . }}
+    environment: dev
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+    tier: backend
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ template "brsp.name" . }}
+      app.kubernetes.io/component: spring
+      environment: dev
+      release: {{ .Release.Name }}
+      tier: backend
+  serviceName: spring-dev
+  {{- $springReplicas := .Values.spring.replicas -}}
+  {{- if kindIs "float64" $springReplicas }}
+  replicas: {{ $springReplicas }}
+  {{- else }}
+  replicas: {{ $springReplicas.dev | default "1" }}
+  {{- end }}
+  minReadySeconds: 10
+  template:
+    metadata:
+      labels:
+        app: spring-dev
+    spec:
+      terminationGracePeriodSeconds: 10
+      containers:
+      - name: nginx
+        image: registry.k8s.io/nginx-slim:0.24
+        ports:
+        - containerPort: 8080
+          name: web
+        volumeMounts:
+        - name: data
+          mountPath: /usr/share/spring
+        resources:
+  {{- with .Values.next }}
+{{ toYaml .resources | indent 10 }}
+    {{- with .nodeSelector }}
+      nodeSelector:
+{{ toYaml . | indent 6 }}
+    {{- end }}
+    {{- with .affinity }}
+      affinity:
+{{ toYaml . | indent 6 }}
+    {{- end }}
+    {{- with .tolerations }}
+      tolerations:
+{{ toYaml . | indent 6 }}
+    {{- end }}
+  {{- end }}
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      {{- if or (.Values.spring).storageClass (.Values.global).storageClass }}
+      storageClassName: {{ (.Values.spring).storageClass | default (.Values.global).storageClass }}
+      {{- end }}
+      resources:
+        requests:
+          storage: 1Gi

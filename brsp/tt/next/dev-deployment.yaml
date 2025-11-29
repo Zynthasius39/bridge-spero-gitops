@@ -38,20 +38,20 @@ spec:
               containerPort: {{ .Values.next.containerPort }}
               protocol: TCP
           resources:
-  {{- with .Values.next }}
+{{- with .Values.next }}
 {{ toYaml .resources | indent 12 }}
-    {{- with .nodeSelector }}
+  {{- with .nodeSelector }}
       nodeSelector:
 {{ toYaml . | indent 8 }}
-    {{- end }}
-    {{- with .affinity }}
+  {{- end }}
+  {{- with .affinity }}
       affinity:
 {{ toYaml . | indent 8 }}
-    {{- end }}
-    {{- with .tolerations }}
+  {{- end }}
+  {{- with .tolerations }}
       tolerations:
 {{ toYaml . | indent 8 }}
-    {{- end }}
   {{- end }}
+{{- end }}
       imagePullSecrets:
         - name: {{ .Values.secrets.cr }}

@@ -1,4 +1,3 @@
-{{/* TODO: Fix SVC */}}
 {{- range $i, $_ := until 2 }}
 {{- range $env := $.Values.environment }}
 {{- with $ }}

@@ -4,7 +4,7 @@
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
 metadata:
-  name: cluster
+  name: cluster-{{ $env }}
   labels:
     app.kubernetes.io/name: {{ template "brsp.name" . }}
     app.kubernetes.io/component: postgres
