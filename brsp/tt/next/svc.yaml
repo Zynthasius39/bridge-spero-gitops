@@ -8,7 +8,7 @@ metadata:
     app.kubernetes.io/name: {{ template "brsp.name" . }}
     app.kubernetes.io/component: next
     helm.sh/chart: {{ template "brsp.chart" . }}
-    environment: {{ $env }}
+    environment: {{ template "brsp.environment" $env }}
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
     tier: frontend
@@ -22,7 +22,7 @@ spec:
   selector:
     app.kubernetes.io/name: {{ template "brsp.name" . }}
     app.kubernetes.io/component: next
-    environment: {{ $env }}
+    environment: {{ template "brsp.environment" $env }}
     release: {{ .Release.Name }}
     tier: frontend
 ---

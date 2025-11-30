@@ -27,9 +27,8 @@ spring:
   image:
     repository: "ghcr.io/zynthasius31/brsp-spring"
     tag:
-      dev: "0.1.1-SNAPSHOT"
-      bluegreen: "0.1.1-SNAPSHOT"
-    pullPolicy: Always
+      dev: "dev-0.1"
+      bluegreen: "0.1"
   resources: {}
   nodeSelector: {}
   tolerations: []
@@ -39,7 +38,7 @@ spring:
     port: 80
 next:
   containerPort: 3000
-  replicaCount:
+  replicas:
     dev: 1
     bluegreen: 1
   image:
@@ -47,7 +46,6 @@ next:
     tag:
       dev: dev-0.1.1
       bluegreen: 0.1.0
-    pullPolicy: Always
   resources:
     limits:
       cpu: 500m
@@ -67,7 +65,6 @@ cloudflared:
   image:
     repository: "docker.io/cloudflare/cloudflared"
     tag: latest
-    pullPolicy: Always
   resources:
     limits:
       cpu: 100m

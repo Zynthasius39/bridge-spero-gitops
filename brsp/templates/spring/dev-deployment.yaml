@@ -1,5 +1,5 @@
 apiVersion: apps/v1
-kind: StatefulSet
+kind: Deployment
 metadata:
   name: spring-dev
   labels:
@@ -11,6 +11,12 @@ metadata:
     heritage: {{ .Release.Service }}
     tier: backend
 spec:
+  {{- $springReplicas := .Values.spring.replicas -}}
+  {{- if kindIs "float64" $springReplicas }}
+  replicas: {{ $springReplicas }}
+  {{- else }}
+  replicas: {{ $springReplicas.dev | default "1" }}
+  {{- end }}
   selector:
     matchLabels:
       app.kubernetes.io/name: {{ template "brsp.name" . }}
@@ -18,13 +24,6 @@ spec:
       environment: dev
       release: {{ .Release.Name }}
       tier: backend
-  serviceName: spring-dev
-  {{- $springReplicas := .Values.spring.replicas -}}
-  {{- if kindIs "float64" $springReplicas }}
-  replicas: {{ $springReplicas }}
-  {{- else }}
-  replicas: {{ $springReplicas.dev | default "1" }}
-  {{- end }}
   minReadySeconds: {{ (.Values.spring).minReadySeconds | default "10" }}
   template:
     metadata:
@@ -36,12 +35,33 @@ spec:
         tier: backend
     spec:
       terminationGracePeriodSeconds: {{ (.Values.spring).terminationGracePeriodSeconds | default "10" }}
+      initContainers:
+        - name: wait-for-services
+          image: busybox
+          imagePullPolicy: {{ ((.Values.spring).image).pullPolicy | default "IfNotPresent" }}
+          command: ["/bin/sh","-c"]
+          args:
+            - |-
+              until
+                echo 'Waiting for postgres...' &&
+                nc -vz -w 2 {{ template "postgres.service.name" . }}-$BRSP_ENV-rw.default.svc.cluster.local 5432 &&
+                echo 'Waiting for redis...' &&
+                nc -vz -w 2 {{ template "redis.service.name" . }}-$BRSP_ENV.default.svc.cluster.local 6379
+              do
+                echo 'Looping forever...'
+                sleep 2
+              done
+          env:
+            - name: BRSP_ENV
+              value: dev
       containers:
         - name: spring-dev
           image: "{{ .Values.spring.image.repository }}:{{ .Values.spring.image.tag.dev }}"
+          imagePullPolicy: {{ ((.Values.spring).image).pullPolicy | default "IfNotPresent" }}
           ports:
             - containerPort: {{ .Values.spring.containerPort }}
               name: http
+              protocol: TCP
           env:
             - name: BRSP_ENV
               value: dev
@@ -63,17 +83,11 @@ spec:
                 configMapKeyRef:
                   name: {{ . }}
                   key: replicaDatasourceUrl
-            - name: REDIS_HOST
+            - name: REDIS_ADDRESS
               valueFrom:
                 configMapKeyRef:
                   name: {{ . }}
-                  key: redisHost
-            - name: REDIS_PORT
-              valueFrom:
-                configMapKeyRef:
-                  name: {{ . }}
-                  key: redisPort
-                  optional: true
+                  key: redisAddress
             - name: ZOOM_REDIRECT_URI
               valueFrom:
                 configMapKeyRef:
@@ -174,14 +188,7 @@ spec:
 {{- end }}
       imagePullSecrets:
         - name: {{ .Values.secrets.cr }}
-  volumeClaimTemplates:
-  - metadata:
-      name: data
-    spec:
-      accessModes: [ "ReadWriteOnce" ]
-      {{- if or (.Values.spring).storageClass (.Values.global).storageClass }}
-      storageClassName: {{ (.Values.spring).storageClass | default (.Values.global).storageClass }}
-      {{- end }}
-      resources:
-        requests:
-          storage: {{ (.Values.spring).storage | default "1Gi" }}
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: spring-dev

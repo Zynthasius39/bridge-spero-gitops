@@ -11,7 +11,12 @@ metadata:
     heritage: {{ .Release.Service }}
     tier: frontend
 spec:
-  replicas: {{ .Values.next.replicaCount }}
+  {{- $nextReplicas := .Values.next.replicas -}}
+  {{- if kindIs "float64" $nextReplicas }}
+  replicas: {{ $nextReplicas }}
+  {{- else }}
+  replicas: {{ $nextReplicas.dev | default "1" }}
+  {{- end }}
   revisionHistoryLimit: 3
   selector:
     matchLabels:

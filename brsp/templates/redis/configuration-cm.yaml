@@ -7,7 +7,7 @@ metadata:
     app.kubernetes.io/name: {{ template "brsp.name" . }}
     app.kubernetes.io/component: redis
     helm.sh/chart: {{ template "brsp.chart" . }}
-    release: {{ .Release.Name } }
+    release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
     tier: data
 data:

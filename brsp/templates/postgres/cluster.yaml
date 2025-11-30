@@ -27,6 +27,10 @@ spec:
     storageClass: {{ $s }}
     {{- end }}
     size: {{ (($pg).storage).size | default "1Gi" }}
+  managed:
+    services:
+      disabledDefaultServices:
+        - r
   bootstrap:
     initdb:
       database: {{ .Values.postgres.initdb.database }}

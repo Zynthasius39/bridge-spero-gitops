@@ -11,7 +11,12 @@ metadata:
     heritage: {{ .Release.Service }}
     tier: frontend
 spec:
-  replicas: {{ .Values.next.replicaCount }}
+  {{- $nextReplicas := .Values.next.replicas -}}
+  {{- if kindIs "float64" $nextReplicas }}
+  replicas: {{ $nextReplicas }}
+  {{- else }}
+  replicas: {{ $nextReplicas.bluegreen | default "1" }}
+  {{- end }}
   revisionHistoryLimit: 2
   selector:
     matchLabels:
@@ -33,7 +38,7 @@ spec:
       containers:
         - name: next
           image: "{{ .Values.next.image.repository }}:{{ .Values.next.image.tag.bluegreen }}"
-          imagePullPolicy: {{ .Values.next.image.pullPolicy }}
+          imagePullPolicy: {{ ((.Values.next).image).pullPolicy | default "IfNotPresent" }}
           ports:
             - name: http
               containerPort: {{ .Values.next.containerPort }}
@@ -58,15 +63,6 @@ spec:
         - name: {{ .Values.secrets.cr }}
   strategy:
     blueGreen: 
-      # activeService specifies the service to update with the new template hash at time of promotion.
-      # This field is mandatory for the blueGreen update strategy.
       activeService: next-bluegreen-active
-      # previewService specifies the service to update with the new template hash before promotion.
-      # This allows the preview stack to be reachable without serving production traffic.
-      # This field is optional.
       previewService: next-bluegreen-preview
-      # autoPromotionEnabled disables automated promotion of the new stack by pausing the rollout
-      # immediately before the promotion. If omitted, the default behavior is to promote the new
-      # stack as soon as the ReplicaSet are completely ready/available.
-      # Rollouts can be resumed using: `kubectl argo rollouts promote ROLLOUT`
       autoPromotionEnabled: false

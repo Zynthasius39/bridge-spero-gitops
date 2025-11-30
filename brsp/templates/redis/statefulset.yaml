@@ -168,7 +168,7 @@ spec:
               subPath: tmp-dir
         - name: sentinel
           image: "{{ .Values.redis.image.sentinel.repository }}:{{ .Values.redis.image.sentinel.tag }}"
-          imagePullPolicy: "IfNotPresent"
+          imagePullPolicy: {{ .Values.redis.pullPolicy | default "IfNotPresent" }}
           lifecycle:
             preStop:
               exec:

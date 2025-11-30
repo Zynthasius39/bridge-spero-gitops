@@ -1,0 +1,18 @@
+{{- range $env := .Values.environment }}
+{{- with $ }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: spring-{{ $env }}
+spec:
+  {{- if or (.Values.spring).storageClass (.Values.global).storageClass }}
+  storageClassName: {{ (.Values.spring).storageClass | default (.Values.global).storageClass }}
+  {{- end }}
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: {{ (.Values.spring).storage | default "1Gi" }}
+---
+{{- end }}
+{{- end }}
