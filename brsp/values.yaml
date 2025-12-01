@@ -1,6 +1,6 @@
 ---
-global: {}
-  # storageClass: jellybean-nfs
+global:
+  storageClass: jellybean-nfs-retain
 postgres:
   imageName: "ghcr.io/cloudnative-pg/postgresql:18.1-202511240807-minimal-trixie@sha256:6f52f3adc69a4416300f5cabc511ed334b585fd5f8bb7df33bb0003202efea13"
   instances: 1
@@ -9,11 +9,9 @@ postgres:
     owner: brsp
   resources:
     limits:
-      cpu: 500m
-      memory: 256Mi
+      memory: 512Mi
     requests:
-      cpu: 500m
-      memory: 256Mi
+      memory: 512Mi
 environment:
   - dev
   - bluegreen
@@ -22,20 +20,27 @@ environmentByService:
   - bluegreen-preview
   - bluegreen-active
 spring:
-  containerPort: 8080
+  containerPort: 8080  # TODO: Add to application.yml/${SPRING_PORT}
   replicaCount: 1
   image:
     repository: "ghcr.io/zynthasius31/brsp-spring"
     tag:
       dev: "dev-0.1"
       bluegreen: "0.1"
-  resources: {}
+  resources:
+    requests:
+      memory: 2Gi
+    limits:
+      memory: 2Gi
   nodeSelector: {}
   tolerations: []
   affinity: {}
   service:
     type: ClusterIP
     port: 80
+  storage:
+    dev: 1Gi
+    bluegreen: 5Gi
 next:
   containerPort: 3000
   replicas:
@@ -47,12 +52,10 @@ next:
       dev: dev-0.1.1
       bluegreen: 0.1.0
   resources:
-    limits:
-      cpu: 500m
-      memory: 256Mi
     requests:
-      cpu: 500m
-      memory: 256Mi
+      memory: 512Mi
+    limits:
+      memory: 512Mi
   nodeSelector: {}
   tolerations: []
   affinity: {}
@@ -67,10 +70,8 @@ cloudflared:
     tag: latest
   resources:
     limits:
-      cpu: 100m
       memory: 256Mi
     requests:
-      cpu: 100m
       memory: 256Mi
   nodeSelector: {}
   tolerations: []
@@ -87,12 +88,24 @@ ingress:
             app: next
             environment: dev
             port: 80
+        - path: /api
+          pathType: Prefix
+          service:
+            app: spring
+            environment: dev
+            port: 80
     - host: prev.bridgespero.com
       paths:
         - path: /
           pathType: Prefix
           service:
             app: next
+            environment: bluegreen-preview
+            port: 80
+        - path: /api
+          pathType: Prefix
+          service:
+            app: spring
             environment: bluegreen-preview
             port: 80
 redis:
@@ -107,17 +120,13 @@ redis:
   resources:
     node:
       limits:
-        cpu: 500m
         memory: 512Mi
       requests:
-        cpu: 500m
         memory: 512Mi
     sentinel:
       limits:
-        cpu: 100m
         memory: 128Mi
       requests:
-        cpu: 100m
         memory: 128Mi
 url:
   dev: https://dev.bridgespero.com
