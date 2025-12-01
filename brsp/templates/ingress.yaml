@@ -20,12 +20,11 @@ spec:
       http:
         paths:
           {{- range .paths }}
-          {{- $ctx := dict "root" $ "path" . }}
           - path: {{ .path }}
             pathType: {{ .pathType }}
             backend:
               service:
-                name: {{ template "brsp.service.name" $ctx }}
+                name: {{ template "brsp.service.name" . }}
                 port:
                   number: {{ .service.port }}
           {{- end }}

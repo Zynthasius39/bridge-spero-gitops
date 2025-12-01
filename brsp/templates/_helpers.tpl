@@ -33,7 +33,7 @@ Create chart name and version as used by the chart label.
 
 {{/* Ingress service name */}}
 {{- define "brsp.service.name" -}}
-{{ .root.Release.Name }}-{{ .path.service.app }}{{ if .path.service.environment}}-{{ .path.service.environment }}{{ end }}
+{{ .service.app }}{{ if .service.environment }}-{{ .service.environment }}{{ end }}
 {{- end -}}
 
 {{/* Environment */}}
