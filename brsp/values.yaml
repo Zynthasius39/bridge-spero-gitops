@@ -21,13 +21,13 @@ environmentByService:
   - bluegreen-preview
   - bluegreen-active
 spring:
-  containerPort: 8080  # TODO: Add to application.yml/${SPRING_PORT}
+  containerPort: 8080 # TODO: Add to application.yml/${SPRING_PORT}
   replicaCount: 1
   image:
     repository: "ghcr.io/zynthasius31/brsp-spring"
     tag:
       dev: "dev-0.1"
-      bluegreen: "0.1"
+      bluegreen: "0.1.1"
   resources:
     requests:
       memory: 2Gi
