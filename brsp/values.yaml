@@ -95,6 +95,18 @@ ingress:
             app: spring
             environment: dev
             port: 80
+        - path: /swagger-ui
+          pathType: Prefix
+          service:
+            app: spring
+            environment: dev
+            port: 80
+        - path: /v3
+          pathType: Prefix
+          service:
+            app: spring
+            environment: dev
+            port: 80
     - host: prev.bridgespero.com
       paths:
         - path: /
