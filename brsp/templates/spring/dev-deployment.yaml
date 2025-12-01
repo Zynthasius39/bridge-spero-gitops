@@ -42,6 +42,8 @@ spec:
           command: ["/bin/sh","-c"]
           args:
             - |-
+              [[ -n "$STATIC_DIR" ]] && { mkdir -pv "$STATIC_DIR"; chown -R 111:111 "$STATIC_DIR"; }
+              [[ -n "$PRIV_DIR" ]] && { mkdir -pv "$PRIV_DIR"; chown -R 111:111 "$PRIV_DIR"; }
               until
                 echo 'Waiting for postgres...' &&
                 nc -vz -w 2 {{ template "postgres.service.name" . }}-$BRSP_ENV-rw{{ template "brsp.service.uriSuffix" . }} 5432 &&
@@ -51,9 +53,25 @@ spec:
                 echo 'Looping forever...'
                 sleep 2
               done
+          securityContext:
+            readOnlyRootFilesystem: true
           env:
             - name: BRSP_ENV
-              value: dev
+              value: bluegreen
+          {{- with .Values.configMaps.spring }}
+            - name: STATIC_DIR
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ . }}
+                  key: staticDir
+                  optional: true
+            - name: PRIV_DIR
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ . }}
+                  key: privDir
+                  optional: true
+          {{- end }}
       containers:
         - name: spring-dev
           image: "{{ .Values.spring.image.repository }}:{{ .Values.spring.image.tag.dev }}"
@@ -170,6 +188,9 @@ spec:
           volumeMounts:
             - name: data
               mountPath: {{ (.Values.spring).dataPath | default "/usr/share/spring" }}
+            - name: empty-dir
+              mountPath: /tmp
+              subPath: tmp-dir
           resources:
 {{- with .Values.spring }}
 {{ toYaml .resources | indent 12 }}
@@ -192,3 +213,5 @@ spec:
         - name: data
           persistentVolumeClaim:
             claimName: spring-dev
+        - name: empty-dir
+          emptyDir: {}

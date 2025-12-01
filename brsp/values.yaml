@@ -21,7 +21,11 @@ environmentByService:
   - bluegreen-preview
   - bluegreen-active
 spring:
-  containerPort: 8080 # TODO: Add to application.yml/${SPRING_PORT}
+  config:
+    staticDir: /usr/share/spring/static
+    privDir: /usr/share/spring/priv
+  containerPort: 8080  # TODO: Add to application.yml/${SPRING_PORT}
+  dataPath: /usr/share/spring
   replicaCount: 1
   image:
     repository: "ghcr.io/zynthasius31/brsp-spring"
@@ -143,6 +147,7 @@ redis:
         memory: 128Mi
 url:
   dev: https://dev.bridgespero.com
+  bluegreen: https://bridgespero.com
 configMaps:
   spring: spring
 secrets:
