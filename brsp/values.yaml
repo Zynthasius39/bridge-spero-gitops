@@ -24,13 +24,13 @@ spring:
   config:
     staticDir: /usr/share/spring/static
     privDir: /usr/share/spring/priv
-  containerPort: 8080  # TODO: Add to application.yml/${SPRING_PORT}
+  containerPort: 8080 # TODO: Add to application.yml/${SPRING_PORT}
   dataPath: /usr/share/spring
   replicaCount: 1
   image:
     repository: "ghcr.io/zynthasius31/brsp-spring"
     tag:
-      dev: "dev-0.1.1"
+      dev: "dev-0.1.2"
       bluegreen: "0.1.1"
   resources:
     requests:
