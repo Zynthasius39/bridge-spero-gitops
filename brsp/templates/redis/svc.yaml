@@ -1,0 +1,43 @@
+{{- range $i, $_ := until 2 }}
+{{- range $env := $.Values.environment }}
+{{- with $ }}
+apiVersion: v1
+kind: Service
+metadata:
+  {{- if eq $i 0 }}
+  name: {{ template "redis.serviceHeadless.name" . }}-{{ template "brsp.environment" $env }}
+  {{- else }}
+  name: {{ template "redis.service.name" . }}-{{ template "brsp.environment" $env }}
+  {{- end }}
+  labels:
+    app.kubernetes.io/name: {{ template "brsp.name" . }}
+    app.kubernetes.io/component: redis
+    helm.sh/chart: {{ template "brsp.chart" . }}
+    environment: {{ template "brsp.environment" $env }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+    tier: data
+spec:
+  type: ClusterIP
+  {{- if eq $i 0 }}
+  clusterIP: None
+  publishNotReadyAddresses: true
+  {{- end }}
+  ports:
+    - name: tcp-redis
+      port: {{ template "redis.port" . }}
+      targetPort: {{ template "redis.port" . }}
+    - name: tcp-sentinel
+      port: {{ template "redis.sentinelPort" . }}
+      targetPort: {{ template "redis.sentinelPort" . }}
+  selector:
+    app.kubernetes.io/name: {{ template "brsp.name" . }}
+    app.kubernetes.io/component: redis
+    helm.sh/chart: {{ template "brsp.chart" . }}
+    environment: {{ template "brsp.environment" $env }}
+    release: {{ .Release.Name }}
+    tier: data
+---
+{{- end }}
+{{- end }}
+{{- end }}

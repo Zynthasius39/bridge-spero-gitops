@@ -1,0 +1,68 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: next-bluegreen
+  labels:
+    app.kubernetes.io/name: {{ template "brsp.name" . }}
+    app.kubernetes.io/component: next
+    helm.sh/chart: {{ template "brsp.chart" . }}
+    environment: bluegreen
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+    tier: frontend
+spec:
+  {{- $nextReplicas := .Values.next.replicas -}}
+  {{- if kindIs "float64" $nextReplicas }}
+  replicas: {{ $nextReplicas }}
+  {{- else }}
+  replicas: {{ $nextReplicas.bluegreen | default "1" }}
+  {{- end }}
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ template "brsp.name" . }}
+      app.kubernetes.io/component: next
+      environment: bluegreen
+      release: {{ $.Release.Name }}
+      tier: frontend
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ template "brsp.name" . }}
+        app.kubernetes.io/environment: bluegreen
+        app.kubernetes.io/component: next
+        environment: bluegreen
+        release: {{ .Release.Name }}
+        tier: frontend
+    spec:
+      containers:
+        - name: next
+          image: "{{ .Values.next.image.repository }}:{{ .Values.next.image.tag.bluegreen }}"
+          imagePullPolicy: {{ ((.Values.next).image).pullPolicy | default "IfNotPresent" }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.next.containerPort }}
+              protocol: TCP
+          resources:
+  {{- with $.Values.next }}
+{{ toYaml .resources | indent 12 }}
+    {{- with .nodeSelector }}
+      nodeSelector:
+{{ toYaml . | indent 8 }}
+    {{- end }}
+    {{- with .affinity }}
+      affinity:
+{{ toYaml . | indent 8 }}
+    {{- end }}
+    {{- with .tolerations }}
+      tolerations:
+{{ toYaml . | indent 8 }}
+    {{- end }}
+  {{- end }}
+      imagePullSecrets:
+        - name: {{ .Values.secrets.cr }}
+  strategy:
+    blueGreen: 
+      activeService: next-bluegreen-active
+      previewService: next-bluegreen-preview
+      autoPromotionEnabled: false

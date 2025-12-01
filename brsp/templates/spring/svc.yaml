@@ -1,0 +1,30 @@
+{{- range $env := .Values.environmentByService }}
+{{- with $ }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: spring-{{ $env }}
+  labels:
+    app.kubernetes.io/name: {{ template "brsp.name" . }}
+    app.kubernetes.io/component: spring
+    helm.sh/chart: {{ template "brsp.chart" . }}
+    environment: {{ template "brsp.environment" $env }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+    tier: backend
+spec:
+  type: {{ ((.Values.spring).service).type | default "8080" }}
+  ports:
+    - port: {{ ((.Values.spring).service).port | default "8080" }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: {{ template "brsp.name" . }}
+    app.kubernetes.io/component: spring
+    environment: {{ template "brsp.environment" $env }}
+    release: {{ .Release.Name }}
+    tier: backend
+---
+{{- end }}
+{{- end }}

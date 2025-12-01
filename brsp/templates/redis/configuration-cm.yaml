@@ -1,0 +1,32 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-configuration
+  labels:
+    app.kubernetes.io/name: {{ template "brsp.name" . }}
+    app.kubernetes.io/component: redis
+    helm.sh/chart: {{ template "brsp.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+    tier: data
+data:
+  redis.conf: |-
+    appendonly yes
+    save ""
+  master.conf: |-
+    dir /data
+    rename-command FLUSHDB ""
+    rename-command FLUSHALL ""
+  replica.conf: |-
+    dir /data
+    rename-command FLUSHDB ""
+    rename-command FLUSHALL ""
+  users.acl: |-
+  sentinel.conf: |-
+    dir "/tmp"
+    port 26379
+    sentinel monitor mymaster {{ template "redis.statefulSet.name" . }}-0.{{ template "redis.serviceHeadless.name" . }}-$BRSP_ENV.default.svc.cluster.local {{ template "redis.port" . }} 2
+    sentinel down-after-milliseconds mymaster 60000
+    sentinel failover-timeout mymaster 180000
+    sentinel parallel-syncs mymaster 1

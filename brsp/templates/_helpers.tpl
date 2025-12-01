@@ -31,9 +31,66 @@ Create chart name and version as used by the chart label.
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 
-{{/*
-Service name
-*/}}
+{{/* Ingress service name */}}
 {{- define "brsp.service.name" -}}
 {{ .root.Release.Name }}-{{ .path.service.app }}{{ if .path.service.environment}}-{{ .path.service.environment }}{{ end }}
+{{- end -}}
+
+{{/* Environment */}}
+{{- define "brsp.environment" -}}
+{{ if eq . "dev" }}dev{{ else }}bluegreen{{ end }}
+{{- end -}}
+
+
+{{/* Redis */}}
+
+{{- define "redis.statefulSet.name" -}}
+{{- if .Values.redis.statefulSet -}}
+{{ .Values.redis.statefulSet.name | default "redis-node" }}
+{{- else -}}
+redis-node
+{{- end -}}
+{{- end -}}
+
+{{- define "redis.port" -}}
+{{ .Values.redis.port | default "6379" }}
+{{- end -}}
+
+{{- define "redis.sentinelPort" -}}
+{{ .Values.redis.sentinelPort | default "26379" }}
+{{- end -}}
+
+{{- define "redis.service.name" -}}
+{{ ((.Values.redis).service).name | default "redis" }}
+{{- end -}}
+
+{{- define "redis.serviceHeadless.name" -}}
+{{ ((.Values.redis).serviceHeadless).name | default "redis-headless" }}
+{{- end -}}
+
+{{- define "redis.startupProbe.timeoutSeconds" -}}
+{{ ((.Values.redis).startupProbe).timeoutSeconds | default ((.Values.redis).livenessProbe).timeoutSeconds | default "5" }}
+{{- end -}}
+
+{{- define "redis.livenessProbe.timeoutSeconds" -}}
+{{ ((.Values.redis).livenessProbe).timeoutSeconds | default "5" }}
+{{- end -}}
+
+{{- define "redis.readinessProbe.timeoutSeconds" -}}
+{{ ((.Values.redis).readinessProbe).timeoutSeconds | default "1" }}
+{{- end -}}
+
+
+{{/* Postgres */}}
+
+{{- define "postgres.service.name" -}}
+{{ ((.Values.postgres).service).name | default "cluster" }}
+{{- end -}}
+
+{{- define "postgres.storage.storageClass" -}}
+{{- if ((.Values.postgres).storage).storageClass -}}
+{{ ((.Values.postgres).storage).storageClass }}
+{{- else if (.Values.global).storageClass -}}
+{{ (.Values.global).storageClass }}
+{{- end -}}
 {{- end -}}

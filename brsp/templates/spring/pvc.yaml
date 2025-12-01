@@ -1,0 +1,31 @@
+{{- range $env := .Values.environment }}
+{{- with $ }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: spring-{{ $env }}
+  labels:
+    app.kubernetes.io/name: {{ template "brsp.name" . }}
+    app.kubernetes.io/component: spring
+    helm.sh/chart: {{ template "brsp.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+    tier: backend
+spec:
+  accessModes:
+    - ReadWriteMany
+  {{- if or (.Values.spring).storageClass (.Values.global).storageClass }}
+  storageClassName: {{ (.Values.spring).storageClass | default (.Values.global).storageClass }}
+  {{- end }}
+  {{- $capacity := .Values.spring.storage -}}
+  {{- if kindIs "map" $capacity -}}
+    {{- $capacity = index $capacity $env | default "1Gi" -}}
+  {{- end -}}
+  {{- if $capacity }}
+  resources:
+    requests:
+      storage: {{ $capacity }}
+  {{- end }}
+---
+{{- end }}
+{{- end }}

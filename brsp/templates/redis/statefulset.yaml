@@ -1,0 +1,318 @@
+{{- range $env := .Values.environment }}
+{{- with $ }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ template "redis.statefulSet.name" . }}-{{ template "brsp.environment" $env }}
+  labels:
+    app.kubernetes.io/name: {{ template "brsp.name" . }}
+    app.kubernetes.io/component: redis
+    helm.sh/chart: {{ template "brsp.chart" . }}
+    environment: {{ template "brsp.environment" $env }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+    tier: data
+spec:
+  replicas: {{ .Values.redis.replicaCount }}
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ template "brsp.name" . }}
+      app.kubernetes.io/component: redis
+      helm.sh/chart: {{ template "brsp.chart" . }}
+      environment: {{ template "brsp.environment" $env }}
+      release: {{ .Release.Name }}
+      tier: data
+  serviceName: {{ template "redis.serviceHeadless.name" . }}-{{ template "brsp.environment" $env }}
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ template "brsp.name" . }}
+        app.kubernetes.io/component: redis
+        helm.sh/chart: {{ template "brsp.chart" . }}
+        environment: {{ template "brsp.environment" $env }}
+        release: {{ .Release.Name }}
+        tier: data
+    spec:
+      securityContext:
+        fsGroup: {{ .Values.redis.fsGroup }}
+        fsGroupChangePolicy: Always
+        supplementalGroups: []
+        sysctls: []
+      {{/* serviceAccountName: redis */}}
+      affinity:
+        podAffinity:
+          
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: {{ template "brsp.name" . }}
+                    app.kubernetes.io/component: redis
+                    helm.sh/chart: {{ template "brsp.chart" . }}
+                    environment: {{ template "brsp.environment" $env }}
+                    release: {{ .Release.Name }}
+                    tier: data
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+        nodeAffinity:
+          
+      enableServiceLinks: true
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: redis
+          image: "{{ .Values.redis.image.node.repository }}:{{ .Values.redis.image.node.tag }}"
+          imagePullPolicy: {{ .Values.redis.pullPolicy | default "IfNotPresent" }}
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /bin/bash
+                  - -ec
+                  - /scripts/prestop-redis.sh
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            readOnlyRootFilesystem: true
+            runAsGroup: {{ .Values.redis.runAsGroup | default 1001 }}
+            runAsNonRoot: {{ .Values.redis.runAsNonRoot | default true }}
+            runAsUser: {{ .Values.redis.runAsUser | default 1001 }}
+            seLinuxOptions: {}
+            seccompProfile:
+              type: RuntimeDefault
+          command: ['/bin/bash', '-ec']
+          args:
+            - /scripts/start-node.sh
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: BRSP_ENV
+              value: {{ template "brsp.environment" $env }}
+            - name: REDIS_MASTER_PORT_NUMBER
+              value: {{ .Values.redis.masterPort | default "6379" | quote }}
+            - name: ALLOW_EMPTY_PASSWORD
+              value: {{ .Values.redis.allowEmptyPassword | default "yes" | quote }}
+            - name: OPENSSL_FIPS
+              value: {{ .Values.redis.opensslFips | default "yes" | quote }}
+            - name: REDIS_TLS_ENABLED
+              value: {{ .Values.redis.tlsEnabled | default "no" | quote }}
+            - name: REDIS_PORT
+              value: {{ .Values.redis.port | default "6379" | quote }}
+            - name: REDIS_SENTINEL_TLS_ENABLED
+              value: {{ .Values.redis.sentinelTlsEnabled | default "no" | quote }}
+            - name: REDIS_SENTINEL_PORT
+              value: {{ .Values.redis.sentinelPort | default "26379" | quote }}
+            - name: REDIS_DATA_DIR
+              value: {{ .Values.redis.dataDir | default "/data" }}
+          ports:
+            - name: redis
+              containerPort: {{ .Values.redis.port | default "6379" }}
+          startupProbe:
+            failureThreshold: 22
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: {{ template "redis.startupProbe.timeoutSeconds" . }}
+            exec:
+              command:
+                - /bin/bash
+                - -ec
+                - "/health/ping_liveness_local.sh {{ template "redis.startupProbe.timeoutSeconds" . }}"
+          livenessProbe:
+            initialDelaySeconds: 20
+            periodSeconds: 5
+            timeoutSeconds: {{ template "redis.livenessProbe.timeoutSeconds" . }}
+            successThreshold: 1
+            failureThreshold: 5
+            exec:
+              command:
+                - /bin/bash
+                - -ec
+                - "/health/ping_liveness_local.sh {{ template "redis.livenessProbe.timeoutSeconds" . }}"
+          readinessProbe:
+            initialDelaySeconds: 20
+            periodSeconds: 5
+            timeoutSeconds: {{ template "redis.readinessProbe.timeoutSeconds" . }}
+            successThreshold: 1
+            failureThreshold: 5
+            exec:
+              command:
+                - /bin/bash
+                - -ec
+                - "/health/ping_readiness_local.sh {{ template "redis.readinessProbe.timeoutSeconds" . }}"
+          resources:
+{{ toYaml .Values.redis.resources.node | indent 12 }}
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+            - name: health
+              mountPath: /health
+            - name: sentinel-data
+              mountPath: /etc/redis-sentinel
+            - name: redis-data
+              mountPath: /data
+            - name: config
+              mountPath: /etc/redis-mnt
+            - name: empty-dir
+              mountPath: /etc/redis
+              subPath: app-conf-dir
+            - name: empty-dir
+              mountPath: /tmp
+              subPath: tmp-dir
+        - name: sentinel
+          image: "{{ .Values.redis.image.sentinel.repository }}:{{ .Values.redis.image.sentinel.tag }}"
+          imagePullPolicy: {{ .Values.redis.pullPolicy | default "IfNotPresent" }}
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /bin/bash
+                  - -ec
+                  - /scripts/prestop-sentinel.sh
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            readOnlyRootFilesystem: true
+            runAsGroup: 1001
+            runAsNonRoot: true
+            runAsUser: 1001
+            seLinuxOptions: {}
+            seccompProfile:
+              type: RuntimeDefault
+          command: ['/bin/bash', '-ec']
+          args:
+            - /scripts/start-sentinel.sh
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: BRSP_ENV
+              value: {{ template "brsp.environment" $env }}
+            - name: ALLOW_EMPTY_PASSWORD
+              value: {{ .Values.redis.allowEmptyPassword | default "yes" | quote }}
+            - name: OPENSSL_FIPS
+              value: {{ .Values.redis.opensslFips | default "yes" | quote }}
+            - name: REDIS_SENTINEL_TLS_ENABLED
+              value: {{ .Values.redis.sentinelTlsEnabled | default "no" | quote }}
+            - name: REDIS_SENTINEL_PORT
+              value: {{ .Values.redis.sentinelPort | default "26379" | quote }}
+          ports:
+            - name: redis-sentinel
+              containerPort: {{ .Values.redis.sentinelPort | default "26379" }}
+          startupProbe:
+            failureThreshold: 22
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: {{ template "redis.startupProbe.timeoutSeconds" . }}
+            exec:
+              command:
+                - /bin/bash
+                - -ec
+                - "/health/ping_sentinel.sh {{ template "redis.startupProbe.timeoutSeconds" . }}"
+          livenessProbe:
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            timeoutSeconds: {{ template "redis.livenessProbe.timeoutSeconds" . }}
+            successThreshold: 1
+            failureThreshold: 6
+            exec:
+              command:
+                - /bin/bash
+                - -ec
+                - "/health/ping_sentinel.sh {{ template "redis.livenessProbe.timeoutSeconds" . }}"
+          readinessProbe:
+            initialDelaySeconds: 20
+            periodSeconds: 5
+            timeoutSeconds: {{ template "redis.readinessProbe.timeoutSeconds" . }}
+            successThreshold: 1
+            failureThreshold: 6
+            exec:
+              command:
+                - /bin/bash
+                - -ec
+                - "/health/ping_sentinel.sh {{ template "redis.readinessProbe.timeoutSeconds" . }}"
+          resources:
+{{ toYaml .Values.redis.resources.sentinel | indent 12 }}
+          volumeMounts:
+            - name: empty-dir
+              mountPath: /tmp
+              subPath: tmp-dir
+            - name: scripts
+              mountPath: /scripts
+            - name: health
+              mountPath: /health
+            - name: sentinel-data
+              mountPath: /etc/redis-sentinel
+            - name: redis-data
+              mountPath: /data
+            - name: config
+              mountPath: /etc/redis-mnt
+      volumes:
+        - name: scripts
+          configMap:
+            name: redis-scripts
+            defaultMode: 0755
+        - name: health
+          configMap:
+            name: redis-health
+            defaultMode: 0755
+        - name: config
+          configMap:
+            name: redis-configuration
+        - name: empty-dir
+          emptyDir: {}
+  volumeClaimTemplates:
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: redis-data
+        labels:
+          app.kubernetes.io/name: {{ template "brsp.name" . }}
+          app.kubernetes.io/component: redis
+          helm.sh/chart: {{ template "brsp.chart" . }}
+          environment: {{ template "brsp.environment" $env }}
+          release: {{ .Release.Name }}
+          tier: data
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: "1Gi"
+        {{- if .Values.global.storageClass }}
+        storageClassName: {{ .Values.global.storageClass }}
+        {{ end }}
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: sentinel-data
+        labels:
+          app.kubernetes.io/name: {{ template "brsp.name" . }}
+          app.kubernetes.io/component: redis
+          helm.sh/chart: {{ template "brsp.chart" . }}
+          environment: {{ template "brsp.environment" $env }}
+          release: {{ .Release.Name }}
+          tier: data
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: "1Gi"
+        {{- if .Values.global.storageClass }}
+        storageClassName: {{ .Values.global.storageClass }}
+        {{ end }}
+---
+{{- end }}
+{{- end }}
