@@ -26,7 +26,7 @@ spring:
   image:
     repository: "ghcr.io/zynthasius31/brsp-spring"
     tag:
-      dev: "dev-0.1"
+      dev: "dev-0.1.1"
       bluegreen: "0.1.1"
   resources:
     requests:
