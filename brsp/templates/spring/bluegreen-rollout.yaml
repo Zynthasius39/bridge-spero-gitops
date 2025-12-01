@@ -44,9 +44,9 @@ spec:
             - |-
               until
                 echo 'Waiting for postgres...' &&
-                nc -vz -w 2 {{ template "postgres.service.name" . }}-$BRSP_ENV-rw.default.svc.cluster.local 5432 &&
+                nc -vz -w 2 {{ template "postgres.service.name" . }}-$BRSP_ENV-rw{{ template "brsp.service.uriSuffix" . }} 5432 &&
                 echo 'Waiting for redis...' &&
-                nc -vz -w 2 {{ template "redis.service.name" . }}-$BRSP_ENV.default.svc.cluster.local 6379
+                nc -vz -w 2 {{ template "redis.service.name" . }}-$BRSP_ENV{{ template "brsp.service.uriSuffix" . }} 6379
               do
                 echo 'Looping forever...'
                 sleep 2

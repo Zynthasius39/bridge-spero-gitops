@@ -36,6 +36,11 @@ Create chart name and version as used by the chart label.
 {{ .service.app }}{{ if .service.environment }}-{{ .service.environment }}{{ end }}
 {{- end -}}
 
+{{/* Service URi Suffix */}}
+{{- define "brsp.service.uriSuffix" -}}
+{{ if (.Values.global).namespace }}.{{ .Values.global.namespace }}.svc.cluster.local{{ end }}
+{{- end -}}
+
 {{/* Environment */}}
 {{- define "brsp.environment" -}}
 {{ if eq . "dev" }}dev{{ else }}bluegreen{{ end }}

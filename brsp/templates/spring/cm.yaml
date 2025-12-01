@@ -11,8 +11,8 @@ metadata:
     heritage: {{ .Release.Service }}
     tier: backend
 data:
-  datasourceUrl: jdbc:postgresql://{{ template "postgres.service.name" }}-${BRSP_ENV}-rw.default.svc.cluster.local:5432/{{ .Values.postgres.initdb.database }}
+  datasourceUrl: jdbc:postgresql://{{ template "postgres.service.name" }}-${BRSP_ENV}-rw{{ template "brsp.service.uriSuffix" . }}:5432/{{ .Values.postgres.initdb.database }}
   datasourceUsername: {{ .Values.postgres.initdb.owner }}
-  replicaDatasourceUrl: jdbc:postgresql://{{ template "postgres.service.name" }}-${BRSP_ENV}-ro.default.svc.cluster.local:5432/{{ .Values.postgres.initdb.database }}
-  redisAddress: redis://{{ template "redis.service.name" . }}-${BRSP_ENV}.default.svc.cluster.local:6379
+  replicaDatasourceUrl: jdbc:postgresql://{{ template "postgres.service.name" }}-${BRSP_ENV}-ro{{ template "brsp.service.uriSuffix" . }}:5432/{{ .Values.postgres.initdb.database }}
+  redisAddress: redis://{{ template "redis.service.name" . }}-${BRSP_ENV}{{ template "brsp.service.uriSuffix" . }}:6379
   zoomRedirectUri: ${BRSP_URL}/api/v1/zoom/oauth/callback
