@@ -93,7 +93,7 @@ ingress:
             app: next
             environment: dev
             port: 80
-        - path: /api
+        - path: /api/v1
           pathType: Prefix
           service:
             app: spring
@@ -105,7 +105,13 @@ ingress:
             app: spring
             environment: dev
             port: 80
-        - path: /v3
+        - path: /v3/api-docs
+          pathType: Prefix
+          service:
+            app: spring
+            environment: dev
+            port: 80
+        - path: /public
           pathType: Prefix
           service:
             app: spring
