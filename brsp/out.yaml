@@ -1,0 +1,2456 @@
+---
+# Source: brsp/templates/redis/configuration-cm.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-configuration
+  labels:
+    app.kubernetes.io/name: brsp
+    app.kubernetes.io/component: redis
+    helm.sh/chart: brsp-0.1.0
+    release: release-name
+    heritage: Helm
+    tier: data
+data:
+  redis.conf: |-
+    appendonly yes
+    save ""
+  master.conf: |-
+    dir /data
+    rename-command FLUSHDB ""
+    rename-command FLUSHALL ""
+  replica.conf: |-
+    dir /data
+    rename-command FLUSHDB ""
+    rename-command FLUSHALL ""
+  users.acl: |-
+  sentinel.conf: |-
+    dir "/tmp"
+    port 26379
+    sentinel monitor mymaster redis-node-0.redis-headless-$BRSP_ENV.brsp.svc.cluster.local 6379 2
+    sentinel down-after-milliseconds mymaster 60000
+    sentinel failover-timeout mymaster 180000
+    sentinel parallel-syncs mymaster 1
+---
+# Source: brsp/templates/redis/health-cm.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-health
+  labels:
+    app.kubernetes.io/name: brsp
+    app.kubernetes.io/component: redis
+    helm.sh/chart: brsp-0.1.0
+    release: release-name
+    heritage: Helm
+    tier: data
+data:
+  ping_readiness_local.sh: |-
+    #!/bin/bash
+
+    [[ -f $REDIS_PASSWORD_FILE ]] && export REDIS_PASSWORD="$(< "${REDIS_PASSWORD_FILE}")"
+    [[ -n "$REDIS_PASSWORD" ]] && export REDISCLI_AUTH="$REDIS_PASSWORD"
+    response=$(
+      timeout -s 15 $1 \
+      redis-cli \
+        -h localhost \
+        -p $REDIS_PORT \
+        ping
+    )
+    if [ "$?" -eq "124" ]; then
+      echo "Timed out"
+      exit 1
+    fi
+    if [ "$response" != "PONG" ]; then
+      echo "$response"
+      exit 1
+    fi
+  ping_liveness_local.sh: |-
+    #!/bin/bash
+
+    [[ -f $REDIS_PASSWORD_FILE ]] && export REDIS_PASSWORD="$(< "${REDIS_PASSWORD_FILE}")"
+    [[ -n "$REDIS_PASSWORD" ]] && export REDISCLI_AUTH="$REDIS_PASSWORD"
+    response=$(
+      timeout -s 15 $1 \
+      redis-cli \
+        -h localhost \
+        -p $REDIS_PORT \
+        ping
+    )
+    if [ "$?" -eq "124" ]; then
+      echo "Timed out"
+      exit 1
+    fi
+    responseFirstWord=$(echo $response | head -n1 | awk '{print $1;}')
+    if [ "$response" != "PONG" ] && [ "$responseFirstWord" != "LOADING" ] && [ "$responseFirstWord" != "MASTERDOWN" ]; then
+      echo "$response"
+      exit 1
+    fi
+  ping_sentinel.sh: |-
+    #!/bin/bash
+    [[ -f $REDIS_PASSWORD_FILE ]] && export REDIS_PASSWORD="$(< "${REDIS_PASSWORD_FILE}")"
+    [[ -n "$REDIS_PASSWORD" ]] && export REDISCLI_AUTH="$REDIS_PASSWORD"
+    response=$(
+      timeout -s 15 $1 \
+      redis-cli \
+        -h localhost \
+        -p $REDIS_SENTINEL_PORT \
+        ping
+    )
+    if [ "$?" -eq "124" ]; then
+      echo "Timed out"
+      exit 1
+    fi
+    if [ "$response" != "PONG" ]; then
+      echo "$response"
+      exit 1
+    fi
+  parse_sentinels.awk: |-
+    /ip/ {FOUND_IP=1}
+    /port/ {FOUND_PORT=1}
+    /runid/ {FOUND_RUNID=1}
+    !/ip|port|runid/ {
+      if (FOUND_IP==1) {
+        IP=$1; FOUND_IP=0;
+      }
+      else if (FOUND_PORT==1) {
+        PORT=$1;
+        FOUND_PORT=0;
+      } else if (FOUND_RUNID==1) {
+        printf "\nsentinel known-sentinel mymaster %s %s %s", IP, PORT, $0; FOUND_RUNID=0;
+      }
+    }
+  ping_readiness_master.sh: |-
+    #!/bin/bash
+
+    [[ -f $REDIS_MASTER_PASSWORD_FILE ]] && export REDIS_MASTER_PASSWORD="$(< "${REDIS_MASTER_PASSWORD_FILE}")"
+    [[ -n "$REDIS_MASTER_PASSWORD" ]] && export REDISCLI_AUTH="$REDIS_MASTER_PASSWORD"
+    response=$(
+      timeout -s 15 $1 \
+      redis-cli \
+        -h $REDIS_MASTER_HOST \
+        -p $REDIS_MASTER_PORT_NUMBER \
+        ping
+    )
+    if [ "$?" -eq "124" ]; then
+      echo "Timed out"
+      exit 1
+    fi
+    if [ "$response" != "PONG" ]; then
+      echo "$response"
+      exit 1
+    fi
+  ping_liveness_master.sh: |-
+    #!/bin/bash
+
+    [[ -f $REDIS_MASTER_PASSWORD_FILE ]] && export REDIS_MASTER_PASSWORD="$(< "${REDIS_MASTER_PASSWORD_FILE}")"
+    [[ -n "$REDIS_MASTER_PASSWORD" ]] && export REDISCLI_AUTH="$REDIS_MASTER_PASSWORD"
+    response=$(
+      timeout -s 15 $1 \
+      redis-cli \
+        -h $REDIS_MASTER_HOST \
+        -p $REDIS_MASTER_PORT_NUMBER \
+        ping
+    )
+    if [ "$?" -eq "124" ]; then
+      echo "Timed out"
+      exit 1
+    fi
+    responseFirstWord=$(echo $response | head -n1 | awk '{print $1;}')
+    if [ "$response" != "PONG" ] && [ "$responseFirstWord" != "LOADING" ]; then
+      echo "$response"
+      exit 1
+    fi
+  ping_readiness_local_and_master.sh: |-
+    script_dir="$(dirname "$0")"
+    exit_status=0
+    "$script_dir/ping_readiness_local.sh" $1 || exit_status=$?
+    "$script_dir/ping_readiness_master.sh" $1 || exit_status=$?
+    exit $exit_status
+  ping_liveness_local_and_master.sh: |-
+    script_dir="$(dirname "$0")"
+    exit_status=0
+    "$script_dir/ping_liveness_local.sh" $1 || exit_status=$?
+    "$script_dir/ping_liveness_master.sh" $1 || exit_status=$?
+    exit $exit_status
+---
+# Source: brsp/templates/redis/scripts-cm.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-scripts
+  labels:
+    app.kubernetes.io/name: brsp
+    app.kubernetes.io/component: redis
+    helm.sh/chart: brsp-0.1.0
+    release: release-name
+    heritage: Helm
+    tier: data
+data:
+  common.sh: |-
+    # Copyright Broadcom, Inc. All Rights Reserved.
+    # SPDX-License-Identifier: APACHE-2.0
+
+    RESET='\033[0m'
+    RED='\033[38;5;1m'
+    GREEN='\033[38;5;2m'
+    YELLOW='\033[38;5;3m'
+    MAGENTA='\033[38;5;5m'
+    CYAN='\033[38;5;6m'
+
+    stderr_print() {
+        # 'is_boolean_yes' is defined in libvalidations.sh, but depends on this file so we cannot source it
+        local bool="${BITNAMI_QUIET:-false}"
+        # comparison is performed without regard to the case of alphabetic characters
+        shopt -s nocasematch
+        if ! [[ "$bool" = 1 || "$bool" =~ ^(yes|true)$ ]]; then
+            printf "%b\\n" "${*}" >&2
+        fi
+    }
+
+    log() {
+        local color_bool="${BITNAMI_COLOR:-true}"
+        # comparison is performed without regard to the case of alphabetic characters
+        shopt -s nocasematch
+        if [[ "$color_bool" = 1 || "$color_bool" =~ ^(yes|true)$ ]]; then
+            stderr_print "${CYAN}${MODULE:-} ${MAGENTA}$(date "+%T.%2N ")${RESET}${*}"
+        else
+            stderr_print "${MODULE:-} $(date "+%T.%2N ")${*}"
+        fi
+    }
+
+    info() {
+        local msg_color=""
+        local color_bool="${BITNAMI_COLOR:-true}"
+        # comparison is performed without regard to the case of alphabetic characters
+        shopt -s nocasematch
+        if [[ "$color_bool" = 1 || "$color_bool" =~ ^(yes|true)$ ]];then
+            msg_color="$GREEN"
+        fi
+        log "${msg_color}INFO ${RESET} ==> ${*}"
+    }
+
+    warn() {
+        local msg_color=""
+        local color_bool="${BITNAMI_COLOR:-true}"
+        # comparison is performed without regard to the case of alphabetic characters
+        shopt -s nocasematch
+        if [[ "$color_bool" = 1 || "$color_bool" =~ ^(yes|true)$ ]];then
+            msg_color="$YELLOW"
+        fi
+        log "${msg_color}WARN ${RESET} ==> ${*}"
+    }
+
+    error() {
+        local msg_color=""
+        local color_bool="${BITNAMI_COLOR:-true}"
+        # comparison is performed without regard to the case of alphabetic characters
+        shopt -s nocasematch
+        if [[ "$color_bool" = 1 || "$color_bool" =~ ^(yes|true)$ ]];then
+            msg_color="$RED"
+        fi
+        log "${msg_color}ERROR${RESET} ==> ${*}"
+    }
+
+    debug() {
+        local msg_color=""
+        local color_bool="${BITNAMI_COLOR:-true}"
+        # comparison is performed without regard to the case of alphabetic characters
+        shopt -s nocasematch
+        if [[ "$color_bool" = 1 || "$color_bool" =~ ^(yes|true)$ ]] ;then
+            msg_color="$MAGENTA"
+        fi
+        local debug_bool="${BITNAMI_DEBUG:-false}"
+        if [[ "$debug_bool" = 1 || "$debug_bool" =~ ^(yes|true)$ ]]; then
+            log "${msg_color}DEBUG${RESET} ==> ${*}"
+        fi
+    }
+
+    is_boolean_yes() {
+        local -r bool="${1:-}"
+        # comparison is performed without regard to the case of alphabetic characters
+        shopt -s nocasematch
+        if [[ "$bool" = 1 || "$bool" =~ ^(yes|true)$ ]]; then
+            true
+        else
+            false
+        fi
+    }
+
+    retry_while() {
+        local cmd="${1:?cmd is missing}"
+        local retries="${2:-12}"
+        local sleep_time="${3:-5}"
+        local return_value=1
+
+        read -r -a command <<<"$cmd"
+        for ((i = 1; i <= retries; i += 1)); do
+            "${command[@]}" && return_value=0 && break
+            sleep "$sleep_time"
+        done
+        return $return_value
+    }
+
+    replace_in_file() {
+        local filename="${1:?filename is required}"
+        local match_regex="${2:?match regex is required}"
+        local substitute_regex="${3:?substitute regex is required}"
+        local posix_regex=${4:-true}
+
+        local result
+
+        # We should avoid using 'sed in-place' substitutions
+        # 1) They are not compatible with files mounted from ConfigMap(s)
+        # 2) We found incompatibility issues with Debian10 and "in-place" substitutions
+        local -r del=$'\001' # Use a non-printable character as a 'sed' delimiter to avoid issues
+        if [[ $posix_regex = true ]]; then
+            result="$(sed -E "s${del}${match_regex}${del}${substitute_regex}${del}g" "$filename")"
+        else
+            result="$(sed "s${del}${match_regex}${del}${substitute_regex}${del}g" "$filename")"
+        fi
+        echo "$result" > "$filename"
+    }
+  start-node.sh: |-
+    #!/bin/bash
+
+    . /scripts/common.sh
+
+    get_port() {
+        hostname="$1"
+        type="$2"
+
+        port_var=$(echo "${hostname^^}_SERVICE_PORT_$type" | sed "s/-/_/g")
+        port=${!port_var}
+
+        if [ -z "$port" ]; then
+            case $type in
+                "SENTINEL")
+                    echo 26379
+                    ;;
+                "REDIS")
+                    echo 6379
+                    ;;
+            esac
+        else
+            echo $port
+        fi
+    }
+
+    get_full_hostname() {
+        hostname="$1"
+        full_hostname="${hostname}.${HEADLESS_SERVICE}"
+        echo "${full_hostname}"
+    }
+
+    REDISPORT=$(get_port "$HOSTNAME" "REDIS")
+
+    if [ -n "$REDIS_EXTERNAL_MASTER_HOST" ]; then
+        REDIS_SERVICE="$REDIS_EXTERNAL_MASTER_HOST"
+    else
+        REDIS_SERVICE="redis-$BRSP_ENV.brsp.svc.cluster.local"
+    fi
+
+    SENTINEL_SERVICE_PORT=$(get_port "redis" "SENTINEL")
+
+    redis_cli_command() {
+        local timeout="${1:-0}"
+
+        local args=("-h" "$REDIS_SERVICE" "-p" "$SENTINEL_SERVICE_PORT")
+        local command="redis-cli"
+        if is_boolean_yes "$REDIS_TLS_ENABLED"; then
+            args+=("--tls" "--cert" "$REDIS_TLS_CERT_FILE" "--key" "$REDIS_TLS_KEY_FILE")
+            [ -n "$REDIS_TLS_CA_FILE" ] && args+=("--cacert" "$REDIS_TLS_CA_FILE")
+        fi
+        if [ "$timeout" -gt 0 ]; then
+            command="timeout $timeout $command"
+        fi
+
+        echo " $command ${args[*]}"
+    }
+
+    validate_quorum() {
+        quorum_info_command="$(redis_cli_command) sentinel master mymaster"
+        info "about to run the command: $quorum_info_command"
+        eval $quorum_info_command | grep -Fq "s_down"
+    }
+
+    trigger_manual_failover() {
+        failover_command="$(redis_cli_command) sentinel failover mymaster"
+        info "about to run the command: $failover_command"
+        eval $failover_command
+    }
+
+    get_sentinel_master_info() {
+        sentinel_info_command="$(redis_cli_command 90) sentinel get-master-addr-by-name mymaster"
+        info "about to run the command: $sentinel_info_command"
+        retry_while "eval $sentinel_info_command" 2 5
+    }
+    HEADLESS_SERVICE="redis-headless-$BRSP_ENV.brsp.svc.cluster.local"
+
+    [[ -f $REDIS_PASSWORD_FILE ]] && export REDIS_PASSWORD="$(< "${REDIS_PASSWORD_FILE}")"
+    [[ -f $REDIS_MASTER_PASSWORD_FILE ]] && export REDIS_MASTER_PASSWORD="$(< "${REDIS_MASTER_PASSWORD_FILE}")"
+
+    # check if there is a master
+    master_in_persisted_conf="$(get_full_hostname "$HOSTNAME")"
+    master_port_in_persisted_conf="$REDIS_MASTER_PORT_NUMBER"
+    master_in_sentinel="$(get_sentinel_master_info)"
+    redisRetVal=$?
+
+    if [[ -f /etc/redis-sentinel/sentinel.conf ]]; then
+        master_in_persisted_conf="$(awk '/monitor/ {print $4}' /etc/redis-sentinel/sentinel.conf)"
+        master_port_in_persisted_conf="$(awk '/monitor/ {print $5}' /etc/redis-sentinel/sentinel.conf)"
+        info "Found previous master ${master_in_persisted_conf}:${master_port_in_persisted_conf} in /etc/redis-sentinel/sentinel.conf"
+        debug "$(cat /etc/redis-sentinel/sentinel.conf | grep monitor)"
+    fi
+
+    if [[ -f /etc/redis-mnt/users.acl ]];then
+        cp /etc/redis-mnt/users.acl /etc/redis/users.acl
+    fi
+
+    if [[ $redisRetVal -ne 0 ]]; then
+        if [[ "$master_in_persisted_conf" == "$(get_full_hostname "$HOSTNAME")" ]]; then
+            # Case 1: No active sentinel and in previous sentinel.conf we were the master --> MASTER
+            info "Configuring the node as master"
+            export REDIS_REPLICATION_MODE="master"
+        else
+            # Case 2: No active sentinel and in previous sentinel.conf we were not master --> REPLICA
+            info "Configuring the node as replica"
+            export REDIS_REPLICATION_MODE="replica"
+            REDIS_MASTER_HOST=${master_in_persisted_conf}
+            REDIS_MASTER_PORT_NUMBER=${master_port_in_persisted_conf}
+        fi
+    else
+        # Fetches current master's host and port
+        REDIS_SENTINEL_INFO=($(get_sentinel_master_info))
+        info "Current master: REDIS_SENTINEL_INFO=(${REDIS_SENTINEL_INFO[0]},${REDIS_SENTINEL_INFO[1]})"
+        REDIS_MASTER_HOST=${REDIS_SENTINEL_INFO[0]}
+        REDIS_MASTER_PORT_NUMBER=${REDIS_SENTINEL_INFO[1]}
+        if [[ "$REDIS_MASTER_HOST" == "$(get_full_hostname "$HOSTNAME")" ]]; then
+            # Case 3: Active sentinel and master it is this node --> MASTER
+            info "Configuring the node as master"
+            export REDIS_REPLICATION_MODE="master"
+        else
+            # Case 4: Active sentinel and master is not this node --> REPLICA
+            info "Configuring the node as replica"
+            export REDIS_REPLICATION_MODE="replica"
+        fi
+    fi
+
+    if [[ -n "$REDIS_EXTERNAL_MASTER_HOST" ]]; then
+      REDIS_MASTER_HOST="$REDIS_EXTERNAL_MASTER_HOST"
+      REDIS_MASTER_PORT_NUMBER="${REDIS_EXTERNAL_MASTER_PORT}"
+    fi
+
+    if [[ -f /etc/redis-mnt/replica.conf ]];then
+        cp /etc/redis-mnt/replica.conf /etc/redis/replica.conf
+    fi
+
+    if [[ -f /etc/redis-mnt/redis.conf ]];then
+        cp /etc/redis-mnt/redis.conf /etc/redis/redis.conf
+    fi
+
+    echo "" >> /etc/redis/replica.conf
+    echo "replica-announce-port $REDISPORT" >> /etc/redis/replica.conf
+    echo "replica-announce-ip $(get_full_hostname "$HOSTNAME")" >> /etc/redis/replica.conf
+    ARGS=("--port" "${REDIS_PORT}")
+
+    if [[ "$REDIS_REPLICATION_MODE" = "slave" ]] || [[ "$REDIS_REPLICATION_MODE" = "replica" ]]; then
+        ARGS+=("--replicaof" "${REDIS_MASTER_HOST}" "${REDIS_MASTER_PORT_NUMBER}")
+    fi
+    ARGS+=("--protected-mode" "no")
+    ARGS+=("--include" "/etc/redis/replica.conf")
+    ARGS+=("--include" "/etc/redis/redis.conf")
+    exec redis-server "${ARGS[@]}"
+
+  start-sentinel.sh: |-
+    #!/bin/bash
+
+    HEADLESS_SERVICE="redis-headless-$BRSP_ENV.brsp.svc.cluster.local"
+    REDIS_SERVICE="redis-$BRSP_ENV.brsp.svc.cluster.local"
+
+    . /scripts/common.sh
+
+    get_port() {
+        hostname="$1"
+        type="$2"
+
+        port_var=$(echo "${hostname^^}_SERVICE_PORT_$type" | sed "s/-/_/g")
+        port=${!port_var}
+
+        if [ -z "$port" ]; then
+            case $type in
+                "SENTINEL")
+                    echo 26379
+                    ;;
+                "REDIS")
+                    echo 6379
+                    ;;
+            esac
+        else
+            echo $port
+        fi
+    }
+
+    get_full_hostname() {
+        hostname="$1"
+        full_hostname="${hostname}.${HEADLESS_SERVICE}"
+        echo "${full_hostname}"
+    }
+
+    SERVPORT=$(get_port "$HOSTNAME" "SENTINEL")
+    REDISPORT=$(get_port "$HOSTNAME" "REDIS")
+    SENTINEL_SERVICE_PORT=$(get_port "redis" "SENTINEL")
+
+    sentinel_conf_set() {
+        local -r key="${1:?missing key}"
+        local value="${2:-}"
+
+        # Sanitize inputs
+        value="${value//\\/\\\\}"
+        value="${value//&/\\&}"
+        value="${value//\?/\\?}"
+        [[ "$value" = "" ]] && value="\"$value\""
+
+        replace_in_file "/etc/redis-sentinel/prepare-sentinel.conf" "^#*\s*${key} .*" "${key} ${value}" false
+    }
+    sentinel_conf_add() {
+        echo $'\n'"$@" >> "/etc/redis-sentinel/prepare-sentinel.conf"
+    }
+    host_id() {
+        echo "$1" | sha1sum | awk '{print $1}'
+    }
+    get_sentinel_master_info() {
+        if is_boolean_yes "$REDIS_SENTINEL_TLS_ENABLED"; then
+            sentinel_info_command="timeout 90 redis-cli -h $REDIS_SERVICE -p $SENTINEL_SERVICE_PORT --tls --cert ${REDIS_SENTINEL_TLS_CERT_FILE} --key ${REDIS_SENTINEL_TLS_KEY_FILE} --cacert ${REDIS_SENTINEL_TLS_CA_FILE} sentinel get-master-addr-by-name mymaster"
+        else
+            sentinel_info_command="timeout 90 redis-cli -h $REDIS_SERVICE -p $SENTINEL_SERVICE_PORT sentinel get-master-addr-by-name mymaster"
+        fi
+        info "about to run the command: $sentinel_info_command"
+        retry_while "eval $sentinel_info_command" 2 5
+    }
+
+    [[ -f $REDIS_PASSWORD_FILE ]] && export REDIS_PASSWORD="$(< "${REDIS_PASSWORD_FILE}")"
+
+    master_in_persisted_conf="$(get_full_hostname "$HOSTNAME")"
+
+    if [[ -f /etc/redis-sentinel/sentinel.conf ]]; then
+        master_in_persisted_conf="$(awk '/monitor/ {print $4}' /etc/redis-sentinel/sentinel.conf)"
+        info "Found previous master $master_in_persisted_conf in /etc/redis-sentinel/sentinel.conf"
+        debug "$(cat /etc/redis-sentinel/sentinel.conf | grep monitor)"
+    fi
+    REDIS_SENTINEL_INFO=($(get_sentinel_master_info))
+    if [ "$?" -eq "0" ]; then
+        # current master's host and port obtained from other Sentinel
+        info "printing REDIS_SENTINEL_INFO=(${REDIS_SENTINEL_INFO[0]},${REDIS_SENTINEL_INFO[1]})"
+        REDIS_MASTER_HOST=${REDIS_SENTINEL_INFO[0]}
+        REDIS_MASTER_PORT_NUMBER=${REDIS_SENTINEL_INFO[1]}
+    else
+        REDIS_MASTER_HOST="$master_in_persisted_conf"
+        REDIS_MASTER_PORT_NUMBER="$REDISPORT"
+    fi
+    if [[ "$REDIS_MASTER_HOST" == "$(get_full_hostname "$HOSTNAME")" ]]; then
+        export REDIS_REPLICATION_MODE="master"
+    else
+        export REDIS_REPLICATION_MODE="replica"
+    fi
+
+    if [[ -n "$REDIS_EXTERNAL_MASTER_HOST" ]]; then
+      REDIS_MASTER_HOST="$REDIS_EXTERNAL_MASTER_HOST"
+      REDIS_MASTER_PORT_NUMBER="${REDIS_EXTERNAL_MASTER_PORT}"
+    fi
+
+    # To prevent incomplete configuration and as the redis container accesses /etc/redis-sentinel/sentinel.conf
+    # as well, prepare the new config in `prepare-sentinel.conf` and move it atomically to the ultimate destination when it is complete.
+    cp /etc/redis-mnt/sentinel.conf /etc/redis-sentinel/prepare-sentinel.conf
+    printf "\nsentinel myid %s" "$(host_id "$HOSTNAME")" >> /etc/redis-sentinel/prepare-sentinel.conf
+
+    if [[ -z "$REDIS_MASTER_HOST" ]] || [[ -z "$REDIS_MASTER_PORT_NUMBER" ]]
+    then
+        # Prevent incorrect configuration to be written to sentinel.conf
+        error "Redis master host is configured incorrectly (host: $REDIS_MASTER_HOST, port: $REDIS_MASTER_PORT_NUMBER)"
+        exit 1
+    fi
+    sentinel_conf_set "sentinel monitor" "mymaster "$REDIS_MASTER_HOST" "$REDIS_MASTER_PORT_NUMBER" 2"
+
+    add_known_sentinel() {
+        hostname="$1"
+        ip="$2"
+        if [[ -n "$hostname" && -n "$ip" && "$hostname" != "$HOSTNAME" ]]; then
+            sentinel_conf_add "sentinel known-sentinel mymaster $(get_full_hostname "$hostname") $(get_port "$hostname" "SENTINEL") $(host_id "$hostname")"
+        fi
+    }
+
+    add_known_replica() {
+        hostname="$1"
+        ip="$2"
+        if [[ -n "$ip" && "$(get_full_hostname "$hostname")" != "$REDIS_MASTER_HOST" ]]; then
+            sentinel_conf_add "sentinel known-replica mymaster $(get_full_hostname "$hostname") $(get_port "$hostname" "REDIS")"
+        fi
+    }
+
+    add_known_sentinel_public_ip() {
+        hostname="$1"
+        ip="$2"
+        sentinel_conf_add "sentinel known-sentinel mymaster $ip $(get_port "$hostname" "SENTINEL") $(host_id "$hostname")"
+    }
+
+    add_known_replica_public_ip() {
+        hostname="$1"
+        ip="$2"
+        sentinel_conf_add "sentinel known-replica mymaster $ip $(get_port "$hostname" "REDIS")"
+    }
+
+    for node in $(seq 0 $((2-1))); do
+        hostname="redis-node-$node"
+        ip="$(getent hosts "$hostname.$HEADLESS_SERVICE" | awk '{ print $1 }')"
+        add_known_sentinel "$hostname" "$ip"
+        add_known_replica "$hostname" "$ip"
+    done
+
+    echo "" >> /etc/redis-sentinel/prepare-sentinel.conf
+    echo "sentinel announce-hostnames yes" >> /etc/redis-sentinel/prepare-sentinel.conf
+    echo "sentinel resolve-hostnames yes" >> /etc/redis-sentinel/prepare-sentinel.conf
+    echo "sentinel announce-port $SERVPORT" >> /etc/redis-sentinel/prepare-sentinel.conf
+    echo "sentinel announce-ip $(get_full_hostname "$HOSTNAME")" >> /etc/redis-sentinel/prepare-sentinel.conf
+    mv /etc/redis-sentinel/prepare-sentinel.conf /etc/redis-sentinel/sentinel.conf
+    exec redis-server /etc/redis-sentinel/sentinel.conf --sentinel
+
+  prestop-sentinel.sh: |-
+    #!/bin/bash
+
+    HEADLESS_SERVICE="redis-headless-$BRSP_ENV.brsp.svc.cluster.local"
+
+    . /scripts/common.sh
+
+    get_full_hostname() {
+        hostname="$1"
+        full_hostname="${hostname}.${HEADLESS_SERVICE}"
+        echo "${full_hostname}"
+    }
+
+    run_sentinel_command() {
+        if is_boolean_yes "$REDIS_SENTINEL_TLS_ENABLED"; then
+            redis-cli -p "$REDIS_SENTINEL_TLS_PORT_NUMBER" --tls --cert "$REDIS_SENTINEL_TLS_CERT_FILE" --key "$REDIS_SENTINEL_TLS_KEY_FILE" --cacert "$REDIS_SENTINEL_TLS_CA_FILE" sentinel "$@"
+        else
+            redis-cli -p "$REDIS_SENTINEL_PORT" sentinel "$@"
+        fi
+    }
+
+    sentinel_failover_finished() {
+        REDIS_SENTINEL_INFO=($(run_sentinel_command get-master-addr-by-name "mymaster"))
+        echo "REDIS_SENTINEL_INFO: $REDIS_SENTINEL_INFO"
+        REDIS_MASTER_HOST="${REDIS_SENTINEL_INFO[0]}"
+        echo "REDIS_MASTER_HOST: $REDIS_MASTER_HOST"
+        echo "REDIS_MASTER_HOST: $(get_full_hostname $HOSTNAME)"
+        # Check if both variables are not empty
+        if [[ -z "$REDIS_MASTER_HOST" ]]; then
+            echo "WARNING: REDIS_MASTER_HOST is empty, assuming failover not finished"
+            return 1
+        fi
+        [[ "$REDIS_MASTER_HOST" != "$(get_full_hostname $HOSTNAME)" ]]
+    }
+
+    # redis-cli automatically consumes credentials from the REDISCLI_AUTH variable
+    [[ -n "$REDIS_PASSWORD" ]] && export REDISCLI_AUTH="$REDIS_PASSWORD"
+    [[ -f "$REDIS_PASSWORD_FILE" ]] && export REDISCLI_AUTH="$(< "${REDIS_PASSWORD_FILE}")"
+
+    if ! sentinel_failover_finished; then
+        echo "I am the master pod and you are stopping me. Starting sentinel failover"
+        if retry_while "sentinel_failover_finished" "20" 1; then
+            echo "Master has been successfuly failed over to a different pod."
+            exit 0
+        else
+            echo "Master failover failed"
+            exit 1
+        fi
+    else
+        exit 0
+    fi
+  prestop-redis.sh: |-
+    #!/bin/bash
+
+    . /scripts/common.sh
+
+    run_redis_command() {
+        local args=("-h" "127.0.0.1")
+        if is_boolean_yes "$REDIS_TLS_ENABLED"; then
+            args+=("-p" "$REDIS_TLS_PORT" "--tls" "--cert" "$REDIS_TLS_CERT_FILE" "--key" "$REDIS_TLS_KEY_FILE")
+            [ -n "$REDIS_TLS_CA_FILE" ] && args+=("--cacert" "$REDIS_TLS_CA_FILE")
+        else
+            args+=("-p" "$REDIS_PORT")
+        fi
+        redis-cli "${args[@]}" "$@"
+    }
+    is_master() {
+        REDIS_ROLE=$(run_redis_command role | head -1)
+        echo "REDIS_ROLE: $REDIS_ROLE"
+        [[ "$REDIS_ROLE" == "master" ]]
+    }
+    HEADLESS_SERVICE="redis-headless-$BRSP_ENV.brsp.svc.cluster.local"
+
+    get_full_hostname() {
+        hostname="$1"
+        full_hostname="${hostname}.${HEADLESS_SERVICE}"
+        echo "${full_hostname}"
+    }
+
+    run_sentinel_command() {
+        if is_boolean_yes "$REDIS_SENTINEL_TLS_ENABLED"; then
+            redis-cli -p "$REDIS_SENTINEL_TLS_PORT_NUMBER" --tls --cert "$REDIS_SENTINEL_TLS_CERT_FILE" --key "$REDIS_SENTINEL_TLS_KEY_FILE" --cacert "$REDIS_SENTINEL_TLS_CA_FILE" sentinel "$@"
+        else
+            redis-cli -p "$REDIS_SENTINEL_PORT" sentinel "$@"
+        fi
+    }
+
+    sentinel_failover_finished() {
+        REDIS_SENTINEL_INFO=($(run_sentinel_command get-master-addr-by-name "mymaster"))
+        echo "REDIS_SENTINEL_INFO: $REDIS_SENTINEL_INFO"
+        REDIS_MASTER_HOST="${REDIS_SENTINEL_INFO[0]}"
+        echo "REDIS_MASTER_HOST: $REDIS_MASTER_HOST"
+        echo "REDIS_MASTER_HOST: $(get_full_hostname $HOSTNAME)"
+        # Check if both variables are not empty
+        if [[ -z "$REDIS_MASTER_HOST" ]]; then
+            echo "WARNING: REDIS_MASTER_HOST is empty, assuming failover not finished"
+            return 1
+        fi
+        [[ "$REDIS_MASTER_HOST" != "$(get_full_hostname $HOSTNAME)" ]]
+    }
+
+    # redis-cli automatically consumes credentials from the REDISCLI_AUTH variable
+    [[ -n "$REDIS_PASSWORD" ]] && export REDISCLI_AUTH="$REDIS_PASSWORD"
+    [[ -f "$REDIS_PASSWORD_FILE" ]] && export REDISCLI_AUTH="$(< "${REDIS_PASSWORD_FILE}")"
+
+
+    if is_master && ! sentinel_failover_finished; then
+        echo "I am the master pod and you are stopping me. Pausing client connections."
+        # Pausing client write connections to avoid data loss
+        run_redis_command CLIENT PAUSE "22000" WRITE
+
+        echo "Issuing failover"
+        # if I am the master, issue a command to failover once
+        run_sentinel_command failover "mymaster"
+        echo "Waiting for sentinel to complete failover for up to 20s"
+        retry_while "sentinel_failover_finished" "20" 1
+    else
+        exit 0
+    fi
+---
+# Source: brsp/templates/spring/cm.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: spring
+  labels:
+    app.kubernetes.io/name: brsp
+    app.kubernetes.io/component: spring
+    helm.sh/chart: brsp-0.1.0
+    release: release-name
+    heritage: Helm
+    tier: backend
+data:
+  datasourceUrl: jdbc:postgresql://cluster-${BRSP_ENV}-rw.brsp.svc.cluster.local:5432/brsp
+  datasourceUsername: brsp
+  replicaDatasourceUrl: jdbc:postgresql://cluster-${BRSP_ENV}-ro.brsp.svc.cluster.local:5432/brsp
+  redisAddress: redis://redis-${BRSP_ENV}.brsp.svc.cluster.local:6379
+  zoomRedirectUri: ${BRSP_URL}/api/v1/zoom/oauth/callback
+  ddlAuto: create
+  isDropFirst: true
+  privDir: /usr/share/spring/priv
+  staticDir: /usr/share/spring/static
+---
+# Source: brsp/templates/spring/pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: spring-dev
+  labels:
+    app.kubernetes.io/name: brsp
+    app.kubernetes.io/component: spring
+    helm.sh/chart: brsp-0.1.0
+    release: release-name
+    heritage: Helm
+    tier: backend
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: jellybean-nfs-retain
+  resources:
+    requests:
+      storage: 1Gi
+---
+# Source: brsp/templates/spring/pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: spring-bluegreen
+  labels:
+    app.kubernetes.io/name: brsp
+    app.kubernetes.io/component: spring
+    helm.sh/chart: brsp-0.1.0
+    release: release-name
+    heritage: Helm
+    tier: backend
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: jellybean-nfs-retain
+  resources:
+    requests:
+      storage: 5Gi
+---
+# Source: brsp/templates/next/svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: next-dev
+  labels:
+    app.kubernetes.io/name: brsp
+    app.kubernetes.io/component: next
+    helm.sh/chart: brsp-0.1.0
+    environment: dev
+    release: release-name
+    heritage: Helm
+    tier: frontend
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: brsp
+    app.kubernetes.io/component: next
+    environment: dev
+    release: release-name
+    tier: frontend
+---
+# Source: brsp/templates/next/svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: next-bluegreen-preview
+  labels:
+    app.kubernetes.io/name: brsp
+    app.kubernetes.io/component: next
+    helm.sh/chart: brsp-0.1.0
+    environment: bluegreen
+    release: release-name
+    heritage: Helm
+    tier: frontend
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: brsp
+    app.kubernetes.io/component: next
+    environment: bluegreen
+    release: release-name
+    tier: frontend
+---
+# Source: brsp/templates/next/svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: next-bluegreen-active
+  labels:
+    app.kubernetes.io/name: brsp
+    app.kubernetes.io/component: next
+    helm.sh/chart: brsp-0.1.0
+    environment: bluegreen
+    release: release-name
+    heritage: Helm
+    tier: frontend
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: brsp
+    app.kubernetes.io/component: next
+    environment: bluegreen
+    release: release-name
+    tier: frontend
+---
+# Source: brsp/templates/redis/svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-headless-dev
+  labels:
+    app.kubernetes.io/name: brsp
+    app.kubernetes.io/component: redis
+    helm.sh/chart: brsp-0.1.0
+    environment: dev
+    release: release-name
+    heritage: Helm
+    tier: data
+spec:
+  type: ClusterIP
+  clusterIP: None
+  publishNotReadyAddresses: true
+  ports:
+    - name: tcp-redis
+      port: 6379
+      targetPort: 6379
+    - name: tcp-sentinel
+      port: 26379
+      targetPort: 26379
+  selector:
+    app.kubernetes.io/name: brsp
+    app.kubernetes.io/component: redis
+    helm.sh/chart: brsp-0.1.0
+    environment: dev
+    release: release-name
+    tier: data
+---
+# Source: brsp/templates/redis/svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-headless-bluegreen
+  labels:
+    app.kubernetes.io/name: brsp
+    app.kubernetes.io/component: redis
+    helm.sh/chart: brsp-0.1.0
+    environment: bluegreen
+    release: release-name
+    heritage: Helm
+    tier: data
+spec:
+  type: ClusterIP
+  clusterIP: None
+  publishNotReadyAddresses: true
+  ports:
+    - name: tcp-redis
+      port: 6379
+      targetPort: 6379
+    - name: tcp-sentinel
+      port: 26379
+      targetPort: 26379
+  selector:
+    app.kubernetes.io/name: brsp
+    app.kubernetes.io/component: redis
+    helm.sh/chart: brsp-0.1.0
+    environment: bluegreen
+    release: release-name
+    tier: data
+---
+# Source: brsp/templates/redis/svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-dev
+  labels:
+    app.kubernetes.io/name: brsp
+    app.kubernetes.io/component: redis
+    helm.sh/chart: brsp-0.1.0
+    environment: dev
+    release: release-name
+    heritage: Helm
+    tier: data
+spec:
+  type: ClusterIP
+  ports:
+    - name: tcp-redis
+      port: 6379
+      targetPort: 6379
+    - name: tcp-sentinel
+      port: 26379
+      targetPort: 26379
+  selector:
+    app.kubernetes.io/name: brsp
+    app.kubernetes.io/component: redis
+    helm.sh/chart: brsp-0.1.0
+    environment: dev
+    release: release-name
+    tier: data
+---
+# Source: brsp/templates/redis/svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-bluegreen
+  labels:
+    app.kubernetes.io/name: brsp
+    app.kubernetes.io/component: redis
+    helm.sh/chart: brsp-0.1.0
+    environment: bluegreen
+    release: release-name
+    heritage: Helm
+    tier: data
+spec:
+  type: ClusterIP
+  ports:
+    - name: tcp-redis
+      port: 6379
+      targetPort: 6379
+    - name: tcp-sentinel
+      port: 26379
+      targetPort: 26379
+  selector:
+    app.kubernetes.io/name: brsp
+    app.kubernetes.io/component: redis
+    helm.sh/chart: brsp-0.1.0
+    environment: bluegreen
+    release: release-name
+    tier: data
+---
+# Source: brsp/templates/spring/svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: spring-dev
+  labels:
+    app.kubernetes.io/name: brsp
+    app.kubernetes.io/component: spring
+    helm.sh/chart: brsp-0.1.0
+    environment: dev
+    release: release-name
+    heritage: Helm
+    tier: backend
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: brsp
+    app.kubernetes.io/component: spring
+    environment: dev
+    release: release-name
+    tier: backend
+---
+# Source: brsp/templates/spring/svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: spring-bluegreen-preview
+  labels:
+    app.kubernetes.io/name: brsp
+    app.kubernetes.io/component: spring
+    helm.sh/chart: brsp-0.1.0
+    environment: bluegreen
+    release: release-name
+    heritage: Helm
+    tier: backend
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: brsp
+    app.kubernetes.io/component: spring
+    environment: bluegreen
+    release: release-name
+    tier: backend
+---
+# Source: brsp/templates/spring/svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: spring-bluegreen-active
+  labels:
+    app.kubernetes.io/name: brsp
+    app.kubernetes.io/component: spring
+    helm.sh/chart: brsp-0.1.0
+    environment: bluegreen
+    release: release-name
+    heritage: Helm
+    tier: backend
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: brsp
+    app.kubernetes.io/component: spring
+    environment: bluegreen
+    release: release-name
+    tier: backend
+---
+# Source: brsp/templates/cloudflared/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudflared
+  labels:
+    app.kubernetes.io/name: brsp
+    app.kubernetes.io/component: cloudflared
+    helm.sh/chart: brsp-0.1.0
+    release: release-name
+    heritage: Helm
+    tier: edge
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: brsp
+      app.kubernetes.io/component: cloudflared
+      release: release-name
+      tier: edge
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: brsp
+        app.kubernetes.io/component: cloudflared
+        release: release-name
+        tier: edge
+    spec:
+      securityContext:
+        sysctls:
+          - name: net.ipv4.ping_group_range
+            value: "65532 65532"
+      containers:
+        - name: cloudflared
+          image: "docker.io/cloudflare/cloudflared:latest"
+          imagePullPolicy: 
+          env:
+            - name: TUNNEL_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: cf-tunnel-token
+                  key: token
+          command:
+            - cloudflared
+            - tunnel
+            - --no-autoupdate
+            - --loglevel
+            - debug
+            - --metrics
+            - 0.0.0.0:2000
+            - run
+          livenessProbe:
+            httpGet:
+              path: /ready
+              port: 2000
+            failureThreshold: 1
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            limits:
+              memory: 256Mi
+            requests:
+              memory: 256Mi
+---
+# Source: brsp/templates/next/dev-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: next-dev
+  labels:
+    app.kubernetes.io/name: brsp
+    app.kubernetes.io/component: next
+    helm.sh/chart: brsp-0.1.0
+    environment: dev
+    release: release-name
+    heritage: Helm
+    tier: frontend
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: brsp
+      app.kubernetes.io/component: next
+      environment: dev
+      release: release-name
+      tier: frontend
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: brsp
+        app.kubernetes.io/component: next
+        environment: dev
+        release: release-name
+        tier: frontend
+    spec:
+      containers:
+        - name: next-dev
+          image: "ghcr.io/zynthasius31/brsp:dev-0.1.5"
+          imagePullPolicy: 
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          resources:
+            limits:
+              memory: 512Mi
+            requests:
+              memory: 512Mi
+      imagePullSecrets:
+        - name: cr-token
+---
+# Source: brsp/templates/spring/dev-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: spring-dev
+  labels:
+    app.kubernetes.io/name: brsp
+    app.kubernetes.io/component: spring
+    helm.sh/chart: brsp-0.1.0
+    environment: dev
+    release: release-name
+    heritage: Helm
+    tier: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: brsp
+      app.kubernetes.io/component: spring
+      environment: dev
+      release: release-name
+      tier: backend
+  minReadySeconds: 10
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: brsp
+        app.kubernetes.io/component: spring
+        environment: dev
+        release: release-name
+        tier: backend
+    spec:
+      terminationGracePeriodSeconds: 10
+      initContainers:
+        - name: wait-for-services
+          image: busybox
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh","-c"]
+          args:
+            - |-
+              [[ -n "$STATIC_DIR" ]] && { mkdir -pv "$STATIC_DIR"; chown -R 111:111 "$STATIC_DIR"; }
+              [[ -n "$PRIV_DIR" ]] && { mkdir -pv "$PRIV_DIR"; chown -R 111:111 "$PRIV_DIR"; }
+              until
+                echo 'Waiting for postgres...' &&
+                nc -vz -w 2 cluster-$BRSP_ENV-rw.brsp.svc.cluster.local 5432 &&
+                echo 'Waiting for redis...' &&
+                nc -vz -w 2 redis-$BRSP_ENV.brsp.svc.cluster.local 6379
+              do
+                echo 'Looping forever...'
+                sleep 2
+              done
+          securityContext:
+            readOnlyRootFilesystem: true
+          env:
+            - name: BRSP_ENV
+              value: bluegreen
+            - name: STATIC_DIR
+              valueFrom:
+                configMapKeyRef:
+                  name: spring
+                  key: staticDir
+                  optional: true
+            - name: PRIV_DIR
+              valueFrom:
+                configMapKeyRef:
+                  name: spring
+                  key: privDir
+                  optional: true
+      containers:
+        - name: spring-dev
+          image: "ghcr.io/zynthasius31/brsp-spring:dev-0.1.2"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: http
+              protocol: TCP
+          env:
+            - name: BRSP_ENV
+              value: dev
+            - name: BRSP_URL
+              value: https://dev.bridgespero.com
+            - name: DATASOURCE_USERNAME
+              valueFrom:
+                configMapKeyRef:
+                  name: spring
+                  key: datasourceUsername
+            - name: DATASOURCE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: spring
+                  key: datasourceUrl
+            - name: REPLICA_DATASOURCE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: spring
+                  key: replicaDatasourceUrl
+            - name: REDIS_ADDRESS
+              valueFrom:
+                configMapKeyRef:
+                  name: spring
+                  key: redisAddress
+            - name: ZOOM_REDIRECT_URI
+              valueFrom:
+                configMapKeyRef:
+                  name: spring
+                  key: zoomRedirectUri
+            - name: STATIC_DIR
+              valueFrom:
+                configMapKeyRef:
+                  name: spring
+                  key: staticDir
+                  optional: true
+            - name: PRIV_DIR
+              valueFrom:
+                configMapKeyRef:
+                  name: spring
+                  key: privDir
+                  optional: true
+            - name: JPA_SHOWSQL
+              valueFrom:
+                configMapKeyRef:
+                  name: spring
+                  key: jpaShowSql
+                  optional: true
+            - name: JPA_FORMATSQL
+              valueFrom:
+                configMapKeyRef:
+                  name: spring
+                  key: jpaFormatSql
+                  optional: true
+            - name: LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: spring
+                  key: logLevel
+                  optional: true
+            - name: SPRING_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: spring
+                  key: springPort
+                  optional: true
+            - name: IS_DROP_FIRST
+              valueFrom:
+                configMapKeyRef:
+                  name: spring
+                  key: isDropFirst
+                  optional: true
+            - name: DDL_AUTO
+              valueFrom:
+                configMapKeyRef:
+                  name: spring
+                  key: ddlAuto
+                  optional: true
+            - name: DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: spring
+                  key: datasourcePassword
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: spring
+                  key: jwtSecret
+            - name: SUPER_ADMIN_EMAIL
+              valueFrom:
+                secretKeyRef:
+                  name: spring
+                  key: superAdminEmail
+            - name: SUPER_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: spring
+                  key: superAdminPassword
+            - name: ZOOM_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: spring
+                  key: zoomClientId
+            - name: ZOOM_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: spring
+                  key: zoomClientSecret
+            - name: ZOOM_WEBHOOK_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: spring
+                  key: zoomWebhookSecret
+          volumeMounts:
+            - name: data
+              mountPath: /usr/share/spring
+            - name: empty-dir
+              mountPath: /tmp
+              subPath: tmp-dir
+          resources:
+            limits:
+              memory: 2Gi
+            requests:
+              memory: 2Gi
+      imagePullSecrets:
+        - name: cr-token
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: spring-dev
+        - name: empty-dir
+          emptyDir: {}
+---
+# Source: brsp/templates/redis/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis-node-dev
+  labels:
+    app.kubernetes.io/name: brsp
+    app.kubernetes.io/component: redis
+    helm.sh/chart: brsp-0.1.0
+    environment: dev
+    release: release-name
+    heritage: Helm
+    tier: data
+spec:
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: brsp
+      app.kubernetes.io/component: redis
+      helm.sh/chart: brsp-0.1.0
+      environment: dev
+      release: release-name
+      tier: data
+  serviceName: redis-headless-dev
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: brsp
+        app.kubernetes.io/component: redis
+        helm.sh/chart: brsp-0.1.0
+        environment: dev
+        release: release-name
+        tier: data
+    spec:
+      securityContext:
+        fsGroup: 
+        fsGroupChangePolicy: Always
+        supplementalGroups: []
+        sysctls: []
+      
+      affinity:
+        podAffinity:
+          
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: brsp
+                    app.kubernetes.io/component: redis
+                    helm.sh/chart: brsp-0.1.0
+                    environment: dev
+                    release: release-name
+                    tier: data
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+        nodeAffinity:
+          
+      enableServiceLinks: true
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: redis
+          image: "docker.io/library/redis:latest"
+          imagePullPolicy: IfNotPresent
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /bin/bash
+                  - -ec
+                  - /scripts/prestop-redis.sh
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            readOnlyRootFilesystem: true
+            runAsGroup: 1001
+            runAsNonRoot: true
+            runAsUser: 1001
+            seLinuxOptions: {}
+            seccompProfile:
+              type: RuntimeDefault
+          command: ['/bin/bash', '-ec']
+          args:
+            - /scripts/start-node.sh
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: BRSP_ENV
+              value: dev
+            - name: REDIS_MASTER_PORT_NUMBER
+              value: "6379"
+            - name: ALLOW_EMPTY_PASSWORD
+              value: "yes"
+            - name: OPENSSL_FIPS
+              value: "yes"
+            - name: REDIS_TLS_ENABLED
+              value: "no"
+            - name: REDIS_PORT
+              value: "6379"
+            - name: REDIS_SENTINEL_TLS_ENABLED
+              value: "no"
+            - name: REDIS_SENTINEL_PORT
+              value: "26379"
+            - name: REDIS_DATA_DIR
+              value: /data
+          ports:
+            - name: redis
+              containerPort: 6379
+          startupProbe:
+            failureThreshold: 22
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+            exec:
+              command:
+                - /bin/bash
+                - -ec
+                - "/health/ping_liveness_local.sh 5"
+          livenessProbe:
+            initialDelaySeconds: 20
+            periodSeconds: 5
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 5
+            exec:
+              command:
+                - /bin/bash
+                - -ec
+                - "/health/ping_liveness_local.sh 5"
+          readinessProbe:
+            initialDelaySeconds: 20
+            periodSeconds: 5
+            timeoutSeconds: 1
+            successThreshold: 1
+            failureThreshold: 5
+            exec:
+              command:
+                - /bin/bash
+                - -ec
+                - "/health/ping_readiness_local.sh 1"
+          resources:
+            limits:
+              memory: 512Mi
+            requests:
+              memory: 512Mi
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+            - name: health
+              mountPath: /health
+            - name: sentinel-data
+              mountPath: /etc/redis-sentinel
+            - name: redis-data
+              mountPath: /data
+            - name: config
+              mountPath: /etc/redis-mnt
+            - name: empty-dir
+              mountPath: /etc/redis
+              subPath: app-conf-dir
+            - name: empty-dir
+              mountPath: /tmp
+              subPath: tmp-dir
+        - name: sentinel
+          image: "docker.io/library/redis:latest"
+          imagePullPolicy: IfNotPresent
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /bin/bash
+                  - -ec
+                  - /scripts/prestop-sentinel.sh
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            readOnlyRootFilesystem: true
+            runAsGroup: 1001
+            runAsNonRoot: true
+            runAsUser: 1001
+            seLinuxOptions: {}
+            seccompProfile:
+              type: RuntimeDefault
+          command: ['/bin/bash', '-ec']
+          args:
+            - /scripts/start-sentinel.sh
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: BRSP_ENV
+              value: dev
+            - name: ALLOW_EMPTY_PASSWORD
+              value: "yes"
+            - name: OPENSSL_FIPS
+              value: "yes"
+            - name: REDIS_SENTINEL_TLS_ENABLED
+              value: "no"
+            - name: REDIS_SENTINEL_PORT
+              value: "26379"
+          ports:
+            - name: redis-sentinel
+              containerPort: 26379
+          startupProbe:
+            failureThreshold: 22
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+            exec:
+              command:
+                - /bin/bash
+                - -ec
+                - "/health/ping_sentinel.sh 5"
+          livenessProbe:
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 6
+            exec:
+              command:
+                - /bin/bash
+                - -ec
+                - "/health/ping_sentinel.sh 5"
+          readinessProbe:
+            initialDelaySeconds: 20
+            periodSeconds: 5
+            timeoutSeconds: 1
+            successThreshold: 1
+            failureThreshold: 6
+            exec:
+              command:
+                - /bin/bash
+                - -ec
+                - "/health/ping_sentinel.sh 1"
+          resources:
+            limits:
+              memory: 128Mi
+            requests:
+              memory: 128Mi
+          volumeMounts:
+            - name: empty-dir
+              mountPath: /tmp
+              subPath: tmp-dir
+            - name: scripts
+              mountPath: /scripts
+            - name: health
+              mountPath: /health
+            - name: sentinel-data
+              mountPath: /etc/redis-sentinel
+            - name: redis-data
+              mountPath: /data
+            - name: config
+              mountPath: /etc/redis-mnt
+      volumes:
+        - name: scripts
+          configMap:
+            name: redis-scripts
+            defaultMode: 0755
+        - name: health
+          configMap:
+            name: redis-health
+            defaultMode: 0755
+        - name: config
+          configMap:
+            name: redis-configuration
+        - name: empty-dir
+          emptyDir: {}
+  volumeClaimTemplates:
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: redis-data
+        labels:
+          app.kubernetes.io/name: brsp
+          app.kubernetes.io/component: redis
+          helm.sh/chart: brsp-0.1.0
+          environment: dev
+          release: release-name
+          tier: data
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: "1Gi"
+        storageClassName: jellybean-nfs-retain
+        
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: sentinel-data
+        labels:
+          app.kubernetes.io/name: brsp
+          app.kubernetes.io/component: redis
+          helm.sh/chart: brsp-0.1.0
+          environment: dev
+          release: release-name
+          tier: data
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: "1Gi"
+        storageClassName: jellybean-nfs-retain
+---
+# Source: brsp/templates/redis/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis-node-bluegreen
+  labels:
+    app.kubernetes.io/name: brsp
+    app.kubernetes.io/component: redis
+    helm.sh/chart: brsp-0.1.0
+    environment: bluegreen
+    release: release-name
+    heritage: Helm
+    tier: data
+spec:
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: brsp
+      app.kubernetes.io/component: redis
+      helm.sh/chart: brsp-0.1.0
+      environment: bluegreen
+      release: release-name
+      tier: data
+  serviceName: redis-headless-bluegreen
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: brsp
+        app.kubernetes.io/component: redis
+        helm.sh/chart: brsp-0.1.0
+        environment: bluegreen
+        release: release-name
+        tier: data
+    spec:
+      securityContext:
+        fsGroup: 
+        fsGroupChangePolicy: Always
+        supplementalGroups: []
+        sysctls: []
+      
+      affinity:
+        podAffinity:
+          
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: brsp
+                    app.kubernetes.io/component: redis
+                    helm.sh/chart: brsp-0.1.0
+                    environment: bluegreen
+                    release: release-name
+                    tier: data
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+        nodeAffinity:
+          
+      enableServiceLinks: true
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: redis
+          image: "docker.io/library/redis:latest"
+          imagePullPolicy: IfNotPresent
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /bin/bash
+                  - -ec
+                  - /scripts/prestop-redis.sh
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            readOnlyRootFilesystem: true
+            runAsGroup: 1001
+            runAsNonRoot: true
+            runAsUser: 1001
+            seLinuxOptions: {}
+            seccompProfile:
+              type: RuntimeDefault
+          command: ['/bin/bash', '-ec']
+          args:
+            - /scripts/start-node.sh
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: BRSP_ENV
+              value: bluegreen
+            - name: REDIS_MASTER_PORT_NUMBER
+              value: "6379"
+            - name: ALLOW_EMPTY_PASSWORD
+              value: "yes"
+            - name: OPENSSL_FIPS
+              value: "yes"
+            - name: REDIS_TLS_ENABLED
+              value: "no"
+            - name: REDIS_PORT
+              value: "6379"
+            - name: REDIS_SENTINEL_TLS_ENABLED
+              value: "no"
+            - name: REDIS_SENTINEL_PORT
+              value: "26379"
+            - name: REDIS_DATA_DIR
+              value: /data
+          ports:
+            - name: redis
+              containerPort: 6379
+          startupProbe:
+            failureThreshold: 22
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+            exec:
+              command:
+                - /bin/bash
+                - -ec
+                - "/health/ping_liveness_local.sh 5"
+          livenessProbe:
+            initialDelaySeconds: 20
+            periodSeconds: 5
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 5
+            exec:
+              command:
+                - /bin/bash
+                - -ec
+                - "/health/ping_liveness_local.sh 5"
+          readinessProbe:
+            initialDelaySeconds: 20
+            periodSeconds: 5
+            timeoutSeconds: 1
+            successThreshold: 1
+            failureThreshold: 5
+            exec:
+              command:
+                - /bin/bash
+                - -ec
+                - "/health/ping_readiness_local.sh 1"
+          resources:
+            limits:
+              memory: 512Mi
+            requests:
+              memory: 512Mi
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+            - name: health
+              mountPath: /health
+            - name: sentinel-data
+              mountPath: /etc/redis-sentinel
+            - name: redis-data
+              mountPath: /data
+            - name: config
+              mountPath: /etc/redis-mnt
+            - name: empty-dir
+              mountPath: /etc/redis
+              subPath: app-conf-dir
+            - name: empty-dir
+              mountPath: /tmp
+              subPath: tmp-dir
+        - name: sentinel
+          image: "docker.io/library/redis:latest"
+          imagePullPolicy: IfNotPresent
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /bin/bash
+                  - -ec
+                  - /scripts/prestop-sentinel.sh
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            readOnlyRootFilesystem: true
+            runAsGroup: 1001
+            runAsNonRoot: true
+            runAsUser: 1001
+            seLinuxOptions: {}
+            seccompProfile:
+              type: RuntimeDefault
+          command: ['/bin/bash', '-ec']
+          args:
+            - /scripts/start-sentinel.sh
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: BRSP_ENV
+              value: bluegreen
+            - name: ALLOW_EMPTY_PASSWORD
+              value: "yes"
+            - name: OPENSSL_FIPS
+              value: "yes"
+            - name: REDIS_SENTINEL_TLS_ENABLED
+              value: "no"
+            - name: REDIS_SENTINEL_PORT
+              value: "26379"
+          ports:
+            - name: redis-sentinel
+              containerPort: 26379
+          startupProbe:
+            failureThreshold: 22
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+            exec:
+              command:
+                - /bin/bash
+                - -ec
+                - "/health/ping_sentinel.sh 5"
+          livenessProbe:
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 6
+            exec:
+              command:
+                - /bin/bash
+                - -ec
+                - "/health/ping_sentinel.sh 5"
+          readinessProbe:
+            initialDelaySeconds: 20
+            periodSeconds: 5
+            timeoutSeconds: 1
+            successThreshold: 1
+            failureThreshold: 6
+            exec:
+              command:
+                - /bin/bash
+                - -ec
+                - "/health/ping_sentinel.sh 1"
+          resources:
+            limits:
+              memory: 128Mi
+            requests:
+              memory: 128Mi
+          volumeMounts:
+            - name: empty-dir
+              mountPath: /tmp
+              subPath: tmp-dir
+            - name: scripts
+              mountPath: /scripts
+            - name: health
+              mountPath: /health
+            - name: sentinel-data
+              mountPath: /etc/redis-sentinel
+            - name: redis-data
+              mountPath: /data
+            - name: config
+              mountPath: /etc/redis-mnt
+      volumes:
+        - name: scripts
+          configMap:
+            name: redis-scripts
+            defaultMode: 0755
+        - name: health
+          configMap:
+            name: redis-health
+            defaultMode: 0755
+        - name: config
+          configMap:
+            name: redis-configuration
+        - name: empty-dir
+          emptyDir: {}
+  volumeClaimTemplates:
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: redis-data
+        labels:
+          app.kubernetes.io/name: brsp
+          app.kubernetes.io/component: redis
+          helm.sh/chart: brsp-0.1.0
+          environment: bluegreen
+          release: release-name
+          tier: data
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: "1Gi"
+        storageClassName: jellybean-nfs-retain
+        
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: sentinel-data
+        labels:
+          app.kubernetes.io/name: brsp
+          app.kubernetes.io/component: redis
+          helm.sh/chart: brsp-0.1.0
+          environment: bluegreen
+          release: release-name
+          tier: data
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: "1Gi"
+        storageClassName: jellybean-nfs-retain
+---
+# Source: brsp/templates/ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress
+  labels:
+    app.kubernetes.io/name: brsp
+    helm.sh/chart: brsp-0.1.0
+    release: release-name
+    heritage: Helm
+  annotations:
+spec:
+  rules:
+    - host: "dev.bridgespero.com"
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: next-dev
+                port:
+                  number: 80
+          - path: /api/v1
+            pathType: Prefix
+            backend:
+              service:
+                name: spring-dev
+                port:
+                  number: 80
+          - path: /swagger-ui
+            pathType: Prefix
+            backend:
+              service:
+                name: spring-dev
+                port:
+                  number: 80
+          - path: /v3/api-docs
+            pathType: Prefix
+            backend:
+              service:
+                name: spring-dev
+                port:
+                  number: 80
+          - path: /public
+            pathType: Prefix
+            backend:
+              service:
+                name: spring-dev
+                port:
+                  number: 80
+    - host: "prev.bridgespero.com"
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: next-bluegreen-preview
+                port:
+                  number: 80
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: spring-bluegreen-preview
+                port:
+                  number: 80
+---
+# Source: brsp/templates/postgres/cluster.yaml
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: cluster-dev
+  labels:
+    app.kubernetes.io/name: brsp
+    app.kubernetes.io/component: postgres
+    helm.sh/chart: brsp-0.1.0
+    environment: dev
+    release: release-name
+    heritage: Helm
+    tier: data
+spec:
+  imageName: ghcr.io/cloudnative-pg/postgresql:18.1-202511240807-minimal-trixie@sha256:6f52f3adc69a4416300f5cabc511ed334b585fd5f8bb7df33bb0003202efea13
+  instances: 1
+  storage:
+    storageClass: jellybean-nfs-retain
+    size: 1Gi
+  managed:
+    services:
+      disabledDefaultServices:
+        - r
+  bootstrap:
+    initdb:
+      database: brsp
+      owner: brsp
+      secret:
+        name: db-user-secret
+  resources:
+    limits:
+      memory: 512Mi
+    requests:
+      memory: 512Mi
+---
+# Source: brsp/templates/postgres/cluster.yaml
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: cluster-bluegreen
+  labels:
+    app.kubernetes.io/name: brsp
+    app.kubernetes.io/component: postgres
+    helm.sh/chart: brsp-0.1.0
+    environment: bluegreen
+    release: release-name
+    heritage: Helm
+    tier: data
+spec:
+  imageName: ghcr.io/cloudnative-pg/postgresql:18.1-202511240807-minimal-trixie@sha256:6f52f3adc69a4416300f5cabc511ed334b585fd5f8bb7df33bb0003202efea13
+  instances: 1
+  storage:
+    storageClass: jellybean-nfs-retain
+    size: 1Gi
+  managed:
+    services:
+      disabledDefaultServices:
+        - r
+  bootstrap:
+    initdb:
+      database: brsp
+      owner: brsp
+      secret:
+        name: db-user-secret
+  resources:
+    limits:
+      memory: 512Mi
+    requests:
+      memory: 512Mi
+---
+# Source: brsp/templates/next/bluegreen-rollout.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: next-bluegreen
+  labels:
+    app.kubernetes.io/name: brsp
+    app.kubernetes.io/component: next
+    helm.sh/chart: brsp-0.1.0
+    environment: bluegreen
+    release: release-name
+    heritage: Helm
+    tier: frontend
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: brsp
+      app.kubernetes.io/component: next
+      environment: bluegreen
+      release: release-name
+      tier: frontend
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: brsp
+        app.kubernetes.io/environment: bluegreen
+        app.kubernetes.io/component: next
+        environment: bluegreen
+        release: release-name
+        tier: frontend
+    spec:
+      containers:
+        - name: next
+          image: "ghcr.io/zynthasius31/brsp:0.1.0"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          resources:
+            limits:
+              memory: 512Mi
+            requests:
+              memory: 512Mi
+      imagePullSecrets:
+        - name: cr-token
+  strategy:
+    blueGreen: 
+      activeService: next-bluegreen-active
+      previewService: next-bluegreen-preview
+      autoPromotionEnabled: false
+---
+# Source: brsp/templates/spring/bluegreen-rollout.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: spring-bluegreen
+  labels:
+    app.kubernetes.io/name: brsp
+    app.kubernetes.io/component: spring
+    helm.sh/chart: brsp-0.1.0
+    environment: bluegreen
+    release: release-name
+    heritage: Helm
+    tier: backend
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: brsp
+      app.kubernetes.io/component: spring
+      environment: bluegreen
+      release: release-name
+      tier: backend
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: brsp
+        app.kubernetes.io/component: spring
+        environment: bluegreen
+        release: release-name
+        tier: backend
+    spec:
+      terminationGracePeriodSeconds: 10
+      initContainers:
+        - name: wait-for-services
+          image: busybox
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh","-c"]
+          args:
+            - |-
+              [[ -n "$STATIC_DIR" ]] && { mkdir -pv "$STATIC_DIR"; chown -R 111:111 "$STATIC_DIR"; }
+              [[ -n "$PRIV_DIR" ]] && { mkdir -pv "$PRIV_DIR"; chown -R 111:111 "$PRIV_DIR"; }
+              until
+                echo 'Waiting for postgres...' &&
+                nc -vz -w 2 cluster-$BRSP_ENV-rw.brsp.svc.cluster.local 5432 &&
+                echo 'Waiting for redis...' &&
+                nc -vz -w 2 redis-$BRSP_ENV.brsp.svc.cluster.local 6379
+              do
+                echo 'Looping forever...'
+                sleep 2
+              done
+          securityContext:
+            readOnlyRootFilesystem: true
+          env:
+            - name: BRSP_ENV
+              value: bluegreen
+            - name: STATIC_DIR
+              valueFrom:
+                configMapKeyRef:
+                  name: spring
+                  key: staticDir
+                  optional: true
+            - name: PRIV_DIR
+              valueFrom:
+                configMapKeyRef:
+                  name: spring
+                  key: privDir
+                  optional: true
+      containers:
+        - name: spring
+          image: "ghcr.io/zynthasius31/brsp-spring:0.1.1"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: http
+              protocol: TCP
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            readOnlyRootFilesystem: true
+          env:
+            - name: BRSP_ENV
+              value: bluegreen
+            - name: BRSP_URL
+              value: https://bridgespero.com
+            - name: DATASOURCE_USERNAME
+              valueFrom:
+                configMapKeyRef:
+                  name: spring
+                  key: datasourceUsername
+            - name: DATASOURCE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: spring
+                  key: datasourceUrl
+            - name: REPLICA_DATASOURCE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: spring
+                  key: replicaDatasourceUrl
+            - name: REDIS_ADDRESS
+              valueFrom:
+                configMapKeyRef:
+                  name: spring
+                  key: redisAddress
+            - name: ZOOM_REDIRECT_URI
+              valueFrom:
+                configMapKeyRef:
+                  name: spring
+                  key: zoomRedirectUri
+            - name: STATIC_DIR
+              valueFrom:
+                configMapKeyRef:
+                  name: spring
+                  key: staticDir
+                  optional: true
+            - name: PRIV_DIR
+              valueFrom:
+                configMapKeyRef:
+                  name: spring
+                  key: privDir
+                  optional: true
+            - name: JPA_SHOWSQL
+              valueFrom:
+                configMapKeyRef:
+                  name: spring
+                  key: jpaShowSql
+                  optional: true
+            - name: JPA_FORMATSQL
+              valueFrom:
+                configMapKeyRef:
+                  name: spring
+                  key: jpaFormatSql
+                  optional: true
+            - name: LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: spring
+                  key: logLevel
+                  optional: true
+            - name: SPRING_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: spring
+                  key: springPort
+                  optional: true
+            - name: IS_DROP_FIRST
+              valueFrom:
+                configMapKeyRef:
+                  name: spring
+                  key: isDropFirst
+                  optional: true
+            - name: DDL_AUTO
+              valueFrom:
+                configMapKeyRef:
+                  name: spring
+                  key: ddlAuto
+                  optional: true
+            - name: DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: spring
+                  key: datasourcePassword
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: spring
+                  key: jwtSecret
+            - name: SUPER_ADMIN_EMAIL
+              valueFrom:
+                secretKeyRef:
+                  name: spring
+                  key: superAdminEmail
+            - name: SUPER_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: spring
+                  key: superAdminPassword
+            - name: ZOOM_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: spring
+                  key: zoomClientId
+            - name: ZOOM_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: spring
+                  key: zoomClientSecret
+            - name: ZOOM_WEBHOOK_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: spring
+                  key: zoomWebhookSecret
+          volumeMounts:
+            - name: data
+              mountPath: /usr/share/spring
+            - name: empty-dir
+              mountPath: /tmp
+              subPath: tmp-dir
+          resources:
+            limits:
+              memory: 2Gi
+            requests:
+              memory: 2Gi
+      imagePullSecrets:
+        - name: cr-token
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: spring-bluegreen
+        - name: empty-dir
+          emptyDir: {}
+  strategy:
+    blueGreen: 
+      activeService: spring-bluegreen-active
+      previewService: spring-bluegreen-preview
+      autoPromotionEnabled: false

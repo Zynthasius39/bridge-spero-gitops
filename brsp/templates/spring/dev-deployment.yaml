@@ -147,6 +147,18 @@ spec:
                   name: {{ . }}
                   key: springPort
                   optional: true
+            - name: IS_DROP_FIRST
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ . }}
+                  key: isDropFirst
+                  optional: true
+            - name: DDL_AUTO
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ . }}
+                  key: ddlAuto
+                  optional: true
           {{- end }}
           {{- with .Values.secrets.spring }}
             - name: DATASOURCE_PASSWORD
