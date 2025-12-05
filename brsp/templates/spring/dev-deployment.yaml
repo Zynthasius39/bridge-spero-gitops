@@ -17,6 +17,7 @@ spec:
   {{- else }}
   replicas: {{ $springReplicas.dev | default "1" }}
   {{- end }}
+  revisionHistoryLimit: 2
   selector:
     matchLabels:
       app.kubernetes.io/name: {{ template "brsp.name" . }}

@@ -43,6 +43,16 @@ spec:
             - name: http
               containerPort: {{ .Values.next.containerPort }}
               protocol: TCP
+          env:
+            - name: BRSP_ENV
+              value: bluegreen
+          {{- with .Values.configMaps.next }}
+            - name: NEXT_PUBLIC_API_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ . }}
+                  key: apiUrl
+          {{- end }}
           resources:
   {{- with $.Values.next }}
 {{ toYaml .resources | indent 12 }}

@@ -12,7 +12,7 @@ metadata:
     tier: edge
 spec:
   replicas: {{ .Values.cloudflared.replicaCount }}
-  revisionHistoryLimit: 3
+  revisionHistoryLimit: 2
   selector:
     matchLabels:
       app.kubernetes.io/name: {{ template "brsp.name" . }}

@@ -17,7 +17,7 @@ spec:
   {{- else }}
   replicas: {{ $nextReplicas.dev | default "1" }}
   {{- end }}
-  revisionHistoryLimit: 3
+  revisionHistoryLimit: 2
   selector:
     matchLabels:
       app.kubernetes.io/name: {{ template "brsp.name" . }}
@@ -42,6 +42,16 @@ spec:
             - name: http
               containerPort: {{ .Values.next.containerPort }}
               protocol: TCP
+          env:
+            - name: BRSP_ENV
+              value: dev
+          {{- with .Values.configMaps.next }}
+            - name: NEXT_PUBLIC_API_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ . }}
+                  key: apiUrl
+          {{- end }}
           resources:
 {{- with .Values.next }}
 {{ toYaml .resources | indent 12 }}

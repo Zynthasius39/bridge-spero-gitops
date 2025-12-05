@@ -157,6 +157,7 @@ url:
   dev: https://dev.bridgespero.com
   bluegreen: https://bridgespero.com
 configMaps:
+  next: next
   spring: spring
 secrets:
   cr: cr-token

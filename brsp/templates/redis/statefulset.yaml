@@ -14,7 +14,7 @@ metadata:
     tier: data
 spec:
   replicas: {{ .Values.redis.replicaCount }}
-  revisionHistoryLimit: 10
+  revisionHistoryLimit: 2
   selector:
     matchLabels:
       app.kubernetes.io/name: {{ template "brsp.name" . }}
