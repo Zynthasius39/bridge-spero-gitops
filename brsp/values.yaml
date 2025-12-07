@@ -26,7 +26,7 @@ spring:
     privDir: /usr/share/spring/priv
     ddlAuto: create
     isDropFirst: "false"
-  containerPort: 8080  # TODO: Add to application.yml/${SPRING_PORT}
+  containerPort: 8080 # TODO: Add to application.yml/${SPRING_PORT}
   dataPath: /usr/share/spring
   replicaCount: 1
   image:
@@ -56,7 +56,7 @@ next:
   image:
     repository: "ghcr.io/zynthasius31/brsp"
     tag:
-      dev: dev-0.1.5
+      dev: dev-0.6.1
       bluegreen: 0.1.0
   resources:
     requests:
