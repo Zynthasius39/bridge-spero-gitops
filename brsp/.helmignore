@@ -20,4 +20,4 @@
 .idea/
 *.tmproj
 # Secrets
-templates/secrets
+# templates/secrets
