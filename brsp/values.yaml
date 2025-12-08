@@ -127,11 +127,61 @@ ingress:
             app: next
             environment: bluegreen-preview
             port: 80
-        - path: /api
+        - path: /api/v1
           pathType: Prefix
           service:
             app: spring
             environment: bluegreen-preview
+            port: 80
+        - path: /swagger-ui
+          pathType: Prefix
+          service:
+            app: spring
+            environment: bluegreen-preview
+            port: 80
+        - path: /v3/api-docs
+          pathType: Prefix
+          service:
+            app: spring
+            environment: bluegreen-preview
+            port: 80
+        - path: /public
+          pathType: Prefix
+          service:
+            app: spring
+            environment: bluegreen-preview
+            port: 80
+    - host: bridgespero.com
+      paths:
+        - path: /
+          pathType: Prefix
+          service:
+            app: next
+            environment: bluegreen-active
+            port: 80
+        - path: /api/v1
+          pathType: Prefix
+          service:
+            app: spring
+            environment: bluegreen-active
+            port: 80
+        - path: /swagger-ui
+          pathType: Prefix
+          service:
+            app: spring
+            environment: bluegreen-active
+            port: 80
+        - path: /v3/api-docs
+          pathType: Prefix
+          service:
+            app: spring
+            environment: bluegreen-active
+            port: 80
+        - path: /public
+          pathType: Prefix
+          service:
+            app: spring
+            environment: bluegreen-active
             port: 80
 redis:
   replicaCount: 1
