@@ -25,7 +25,7 @@ spring:
     staticDir: /usr/share/spring/static
     privDir: /usr/share/spring/priv
     isDropFirst: "false"
-  containerPort: 8080  # TODO: Add to application.yml/${SPRING_PORT}
+  containerPort: 8080 # TODO: Add to application.yml/${SPRING_PORT}
   dataPath: /usr/share/spring
   replicaCount: 1
   image:
@@ -56,7 +56,7 @@ next:
     repository: "ghcr.io/zynthasius31/brsp"
     tag:
       dev: dev-0.6.1
-      bluegreen: 0.1.0
+      bluegreen: 0.6.1
   resources:
     requests:
       memory: 512Mi
