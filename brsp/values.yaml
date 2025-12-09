@@ -32,7 +32,7 @@ spring:
     repository: "ghcr.io/zynthasius31/brsp-spring"
     tag:
       dev: "dev-0.8.2"
-      bluegreen: "0.7.1"
+      bluegreen: "0.8.2"
   resources:
     requests:
       memory: 2Gi
