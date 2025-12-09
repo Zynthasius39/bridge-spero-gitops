@@ -24,9 +24,8 @@ spring:
   config:
     staticDir: /usr/share/spring/static
     privDir: /usr/share/spring/priv
-    ddlAuto: create
     isDropFirst: "false"
-  containerPort: 8080 # TODO: Add to application.yml/${SPRING_PORT}
+  containerPort: 8080  # TODO: Add to application.yml/${SPRING_PORT}
   dataPath: /usr/share/spring
   replicaCount: 1
   image:
