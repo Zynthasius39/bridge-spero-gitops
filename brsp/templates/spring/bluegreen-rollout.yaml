@@ -231,4 +231,4 @@ spec:
     blueGreen: 
       activeService: spring-bluegreen-active
       previewService: spring-bluegreen-preview
-      autoPromotionEnabled: false
+      autoPromotionEnabled: true
