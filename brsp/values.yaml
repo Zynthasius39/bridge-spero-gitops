@@ -55,7 +55,7 @@ next:
   image:
     repository: "ghcr.io/zynthasius31/brsp"
     tag:
-      dev: dev-0.6.1
+      dev: dev-0.6.2
       bluegreen: 0.6.2
   resources:
     requests:
