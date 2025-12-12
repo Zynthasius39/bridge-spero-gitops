@@ -73,7 +73,7 @@ cloudflared:
   replicaCount: 1
   image:
     repository: "docker.io/cloudflare/cloudflared"
-    tag: latest
+    tag: 2025.11.1
   resources:
     limits:
       memory: 256Mi
