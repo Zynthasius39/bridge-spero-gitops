@@ -29,7 +29,7 @@ spec:
               service:
                 name: {{ template "brsp.service.name" . }}
                 port:
-                  number: {{ .service.port }}
+                  name: {{ .service.port }}
           {{- end }}
     {{- end }}
   {{ end }}
