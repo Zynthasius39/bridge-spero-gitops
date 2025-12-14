@@ -51,12 +51,12 @@ spec:
               valueFrom:
                 configMapKeyRef:
                   name: {{ . }}
-                  key: apiUrl.bluegreen
+                  key: bluegreen.NEXT_PUBLIC_API_URL
             - name: NEXT_PUBLIC_PAGE_URL
               valueFrom:
                 configMapKeyRef:
                   name: {{ . }}
-                  key: pageUrl.bluegreen
+                  key: bluegreen.NEXT_PUBLIC_PAGE_URL
           {{- end }}
           resources:
   {{- with $.Values.next }}

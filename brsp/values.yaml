@@ -21,10 +21,10 @@ environmentByService:
   - bluegreen-preview
   - bluegreen-active
 spring:
-  config:
-    staticDir: /usr/share/spring/static
-    privDir: /usr/share/spring/priv
-    isDropFirst: "false"
+  env:
+    STATIC_DIR: /usr/share/spring/static
+    PRIV_DIR: /usr/share/spring/priv
+    IS_DROP_FIRST: "false"
   containerPort: 8080 # TODO: Add to application.yml/${SPRING_PORT}
   dataPath: /usr/share/spring
   replicaCount: 1
@@ -202,9 +202,6 @@ redis:
         memory: 128Mi
       requests:
         memory: 128Mi
-url:
-  dev: https://dev.bridgespero.com
-  bluegreen: https://bridgespero.com
 configMaps:
   next: next
   spring: spring

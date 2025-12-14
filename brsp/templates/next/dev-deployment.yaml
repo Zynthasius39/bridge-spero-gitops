@@ -50,12 +50,12 @@ spec:
               valueFrom:
                 configMapKeyRef:
                   name: {{ . }}
-                  key: apiUrl.dev
+                  key: dev.NEXT_PUBLIC_API_URL
             - name: NEXT_PUBLIC_PAGE_URL
               valueFrom:
                 configMapKeyRef:
                   name: {{ . }}
-                  key: pageUrl.dev
+                  key: dev.NEXT_PUBLIC_PAGE_URL
           {{- end }}
           resources:
 {{- with .Values.next }}

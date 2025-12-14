@@ -11,6 +11,6 @@ metadata:
     heritage: {{ .Release.Service }}
     tier: frontend
 data:
-  {{- with (.Values.next).config }}
+  {{- with (.Values.next).env }}
 {{ toYaml . | indent 2 }}
   {{- end }}

@@ -11,11 +11,11 @@ metadata:
     heritage: {{ .Release.Service }}
     tier: backend
 data:
-  datasourceUrl: jdbc:postgresql://{{ template "postgres.service.name" }}-${BRSP_ENV}-rw{{ template "brsp.service.uriSuffix" . }}:5432/{{ .Values.postgres.initdb.database }}
-  datasourceUsername: {{ .Values.postgres.initdb.owner }}
-  replicaDatasourceUrl: jdbc:postgresql://{{ template "postgres.service.name" }}-${BRSP_ENV}-ro{{ template "brsp.service.uriSuffix" . }}:5432/{{ .Values.postgres.initdb.database }}
-  redisAddress: redis://{{ template "redis.service.name" . }}-${BRSP_ENV}{{ template "brsp.service.uriSuffix" . }}:6379
-  zoomRedirectUri: ${BRSP_URL}/api/v1/zoom/oauth/callback
-  {{- with (.Values.spring).config }}
+  DATASOURCE_URL: jdbc:postgresql://{{ template "postgres.service.name" }}-${BRSP_ENV}-rw{{ template "brsp.service.uriSuffix" . }}:5432/{{ .Values.postgres.initdb.database }}
+  DATASOURCE_USERNAME: {{ .Values.postgres.initdb.owner }}
+  REPLICA_DATASOURCE_URL: jdbc:postgresql://{{ template "postgres.service.name" }}-${BRSP_ENV}-ro{{ template "brsp.service.uriSuffix" . }}:5432/{{ .Values.postgres.initdb.database }} 
+  REDIS_ADDRESS: redis://{{ template "redis.service.name" . }}-${BRSP_ENV}{{ template "brsp.service.uriSuffix" . }}:6379
+  ZOOM_REDIRECT_URI: ${BRSP_URL}/api/v1/zoom/oauth/callback
+  {{- with (.Values.spring).env }}
 {{ toYaml . | indent 2 }}
   {{- end }}

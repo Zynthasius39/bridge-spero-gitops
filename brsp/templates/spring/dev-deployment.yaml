@@ -56,23 +56,12 @@ spec:
               done
           securityContext:
             readOnlyRootFilesystem: true
+          envFrom:
+            - configMapRef:
+                name: {{ .Values.configMaps.spring }}
           env:
             - name: BRSP_ENV
-              value: bluegreen
-          {{- with .Values.configMaps.spring }}
-            - name: STATIC_DIR
-              valueFrom:
-                configMapKeyRef:
-                  name: {{ . }}
-                  key: staticDir
-                  optional: true
-            - name: PRIV_DIR
-              valueFrom:
-                configMapKeyRef:
-                  name: {{ . }}
-                  key: privDir
-                  optional: true
-          {{- end }}
+              value: dev
       containers:
         - name: spring-dev
           image: "{{ .Values.spring.image.repository }}:{{ .Values.spring.image.tag.dev }}"
@@ -81,117 +70,16 @@ spec:
             - containerPort: {{ .Values.spring.containerPort }}
               name: http
               protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: {{ .Values.configMaps.spring }}
+            - secretRef:
+                name: {{ .Values.secrets.spring }}
           env:
             - name: BRSP_ENV
               value: dev
             - name: BRSP_URL
-              value: {{ .Values.url.dev }}
-          {{- with .Values.configMaps.spring }}
-            - name: DATASOURCE_USERNAME
-              valueFrom:
-                configMapKeyRef:
-                  name: {{ . }}
-                  key: datasourceUsername
-            - name: DATASOURCE_URL
-              valueFrom:
-                configMapKeyRef:
-                  name: {{ . }}
-                  key: datasourceUrl
-            - name: REPLICA_DATASOURCE_URL
-              valueFrom:
-                configMapKeyRef:
-                  name: {{ . }}
-                  key: replicaDatasourceUrl
-            - name: REDIS_ADDRESS
-              valueFrom:
-                configMapKeyRef:
-                  name: {{ . }}
-                  key: redisAddress
-            - name: ZOOM_REDIRECT_URI
-              valueFrom:
-                configMapKeyRef:
-                  name: {{ . }}
-                  key: zoomRedirectUri
-            - name: STATIC_DIR
-              valueFrom:
-                configMapKeyRef:
-                  name: {{ . }}
-                  key: staticDir
-                  optional: true
-            - name: PRIV_DIR
-              valueFrom:
-                configMapKeyRef:
-                  name: {{ . }}
-                  key: privDir
-                  optional: true
-            - name: JPA_SHOWSQL
-              valueFrom:
-                configMapKeyRef:
-                  name: {{ . }}
-                  key: jpaShowSql
-                  optional: true
-            - name: JPA_FORMATSQL
-              valueFrom:
-                configMapKeyRef:
-                  name: {{ . }}
-                  key: jpaFormatSql
-                  optional: true
-            - name: LOG_LEVEL
-              valueFrom:
-                configMapKeyRef:
-                  name: {{ . }}
-                  key: logLevel
-                  optional: true
-            - name: SPRING_PORT
-              valueFrom:
-                configMapKeyRef:
-                  name: {{ . }}
-                  key: springPort
-                  optional: true
-            - name: IS_DROP_FIRST
-              valueFrom:
-                configMapKeyRef:
-                  name: {{ . }}
-                  key: isDropFirst
-                  optional: true
-          {{- end }}
-          {{- with .Values.secrets.spring }}
-            - name: DATASOURCE_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: {{ . }}
-                  key: datasourcePassword
-            - name: JWT_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: {{ . }}
-                  key: jwtSecret
-            - name: SUPER_ADMIN_EMAIL
-              valueFrom:
-                secretKeyRef:
-                  name: {{ . }}
-                  key: superAdminEmail
-            - name: SUPER_ADMIN_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: {{ . }}
-                  key: superAdminPassword
-            - name: ZOOM_CLIENT_ID
-              valueFrom:
-                secretKeyRef:
-                  name: {{ . }}
-                  key: zoomClientId
-            - name: ZOOM_CLIENT_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: {{ . }}
-                  key: zoomClientSecret
-            - name: ZOOM_WEBHOOK_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: {{ . }}
-                  key: zoomWebhookSecret
-          {{- end }}
+              value: {{ index .Values.next.env "bluegreen.NEXT_PUBLIC_PAGE_URL" }}
           volumeMounts:
             - name: data
               mountPath: {{ (.Values.spring).dataPath | default "/usr/share/spring" }}
