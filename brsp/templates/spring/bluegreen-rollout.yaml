@@ -61,6 +61,9 @@ spec:
           env:
             - name: BRSP_ENV
               value: bluegreen
+          volumeMounts:
+            - name: data
+              mountPath: {{ (.Values.spring).dataPath | default "/usr/share/spring" }}
       containers:
         - name: spring
           image: "{{ .Values.spring.image.repository }}:{{ .Values.spring.image.tag.bluegreen }}"
