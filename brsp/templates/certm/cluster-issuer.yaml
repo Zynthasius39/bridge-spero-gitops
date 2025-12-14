@@ -5,13 +5,12 @@ metadata:
   name: {{ template "letsencrypt.issuerName" . }}
 spec:
   acme:
-    server: https://acme-v02.api.letsencrypt.org/directory
-    # server: https://acme-staging-v02.api.letsencrypt.org/directory
+    server: {{ .Values.letsencrypt.server }}
     email: {{ .Values.letsencrypt.email }}
     privateKeySecretRef:
       name: {{ template "letsencrypt.issuerName" . }}
     solvers:
     - http01:
         ingress:
-          class: nginx
+          class: traefik
 {{ end }}

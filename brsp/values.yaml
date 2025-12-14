@@ -71,6 +71,8 @@ next:
 letsencrypt:
   enabled: true
   email: bridgespero@gmail.com
+  server: https://acme-staging-v02.api.letsencrypt.org/directory  # STAGING
+  # server: https://acme-v02.api.letsencrypt.org/directory
 cloudflared:
   enabled: false
   replicaCount: 1
