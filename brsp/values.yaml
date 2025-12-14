@@ -68,8 +68,11 @@ next:
   service:
     type: ClusterIP
     port: 80
-cloudflared:
+letsencrypt:
   enabled: true
+  email: bridgespero@gmail.com
+cloudflared:
+  enabled: false
   replicaCount: 1
   image:
     repository: "docker.io/cloudflare/cloudflared"
@@ -85,8 +88,12 @@ cloudflared:
 ingress:
   enabled: true
   annotations: {}
+  tls:
+    - hosts:
+      - "*.bridgespero.com"
+      secretName: brsp-tls
   hosts:
-    - host: dev.bridgespero.com
+    - host: prev2.bridgespero.com
       paths:
         - path: /
           pathType: Prefix
@@ -94,93 +101,13 @@ ingress:
             app: next
             environment: dev
             port: 80
-        - path: /api/v1
-          pathType: Prefix
-          service:
-            app: spring
-            environment: dev
-            port: 80
-        - path: /swagger-ui
-          pathType: Prefix
-          service:
-            app: spring
-            environment: dev
-            port: 80
-        - path: /v3/api-docs
-          pathType: Prefix
-          service:
-            app: spring
-            environment: dev
-            port: 80
-        - path: /public
-          pathType: Prefix
-          service:
-            app: spring
-            environment: dev
-            port: 80
-    - host: prev.bridgespero.com
+    - host: next2.bridgespero.com
       paths:
         - path: /
           pathType: Prefix
           service:
             app: next
-            environment: bluegreen-preview
-            port: 80
-        - path: /api/v1
-          pathType: Prefix
-          service:
-            app: spring
-            environment: bluegreen-preview
-            port: 80
-        - path: /swagger-ui
-          pathType: Prefix
-          service:
-            app: spring
-            environment: bluegreen-preview
-            port: 80
-        - path: /v3/api-docs
-          pathType: Prefix
-          service:
-            app: spring
-            environment: bluegreen-preview
-            port: 80
-        - path: /public
-          pathType: Prefix
-          service:
-            app: spring
-            environment: bluegreen-preview
-            port: 80
-    - host: bridgespero.com
-      paths:
-        - path: /
-          pathType: Prefix
-          service:
-            app: next
-            environment: bluegreen-active
-            port: 80
-        - path: /api/v1
-          pathType: Prefix
-          service:
-            app: spring
-            environment: bluegreen-active
-            port: 80
-        - path: /swagger-ui
-          pathType: Prefix
-          service:
-            app: spring
-            environment: bluegreen-active
-            port: 80
-        - path: /v3/api-docs
-          pathType: Prefix
-          service:
-            app: spring
-            environment: bluegreen-active
-            port: 80
-        - path: /public
-          pathType: Prefix
-          service:
-            app: spring
-            environment: bluegreen-active
+            environment: dev
             port: 80
 redis:
   replicaCount: 1

@@ -99,3 +99,10 @@ redis-node
 {{ (.Values.global).storageClass }}
 {{- end -}}
 {{- end -}}
+
+
+{{/* Let's Encrypt */}}
+
+{{- define "letsencrypt.issuerName" -}}
+{{ (.Values.letsencrypt).issuerName | default "letsencrypt" }}
+{{- end -}}

@@ -9,6 +9,9 @@ metadata:
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
   annotations:
+    {{- if (.Values.letsencrypt).enabled }}
+    cert-manager.io/issuer: {{ template "letsencrypt.issuerName" . }}
+    {{- end }}
     {{- with .Values.ingress.annotations }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
@@ -30,7 +33,7 @@ spec:
           {{- end }}
     {{- end }}
   {{ end }}
-  {{ if .Values.ingress.tls }}
+  {{ if (.Values.ingress).tls }}
   tls:
     {{- range .Values.ingress.tls }}
     - hosts:
