@@ -92,7 +92,8 @@ ingress:
   annotations: {}
   tls:
     - hosts:
-      - "*.bridgespero.com"
+        - prev2.bridgespero.com
+        - next2.bridgespero.com
       secretName: brsp-tls
   hosts:
     - host: prev2.bridgespero.com
