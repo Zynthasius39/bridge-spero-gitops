@@ -48,6 +48,11 @@ spring:
     dev: 1Gi
     bluegreen: 5Gi
 next:
+  env:
+    dev.NEXT_PUBLIC_API_URL: https://dev.bridgespero.com/api/v1
+    dev.NEXT_PUBLIC_PAGE_URL: https://dev.bridgespero.com
+    bluegreen.NEXT_PUBLIC_API_URL: https://bridgespero.com/api/v1
+    bluegreen.NEXT_PUBLIC_PAGE_URL: https://brigespero.com
   containerPort: 3000
   replicas:
     dev: 1
@@ -92,26 +97,107 @@ ingress:
   annotations: {}
   tls:
     - hosts:
-        - prev2.bridgespero.com
-        - next2.bridgespero.com
+        - bridgespero.com
+        - prev.bridgespero.com
+        - dev.bridgespero.com
       secretName: brsp-tls
   hosts:
-    - host: prev2.bridgespero.com
+    - host: dev.bridgespero.com
       paths:
         - path: /
           pathType: Prefix
           service:
             app: next
             environment: dev
-            port: 80
-    - host: next2.bridgespero.com
+            port: http
+        - path: /api/v1
+          pathType: Prefix
+          service:
+            app: spring
+            environment: dev
+            port: http
+        - path: /swagger-ui
+          pathType: Prefix
+          service:
+            app: spring
+            environment: dev
+            port: http
+        - path: /v3/api-docs
+          pathType: Prefix
+          service:
+            app: spring
+            environment: dev
+            port: http
+        - path: /public
+          pathType: Prefix
+          service:
+            app: spring
+            environment: dev
+            port: http
+    - host: prev.bridgespero.com
       paths:
         - path: /
           pathType: Prefix
           service:
             app: next
-            environment: dev
-            port: 80
+            environment: bluegreen-preview
+            port: http
+        - path: /api/v1
+          pathType: Prefix
+          service:
+            app: spring
+            environment: bluegreen-preview
+            port: http
+        - path: /swagger-ui
+          pathType: Prefix
+          service:
+            app: spring
+            environment: bluegreen-preview
+            port: http
+        - path: /v3/api-docs
+          pathType: Prefix
+          service:
+            app: spring
+            environment: bluegreen-preview
+            port: http
+        - path: /public
+          pathType: Prefix
+          service:
+            app: spring
+            environment: bluegreen-preview
+            port: http
+    - host: bridgespero.com
+      paths:
+        - path: /
+          pathType: Prefix
+          service:
+            app: next
+            environment: bluegreen-active
+            port: http
+        - path: /api/v1
+          pathType: Prefix
+          service:
+            app: spring
+            environment: bluegreen-active
+            port: http
+        - path: /swagger-ui
+          pathType: Prefix
+          service:
+            app: spring
+            environment: bluegreen-active
+            port: http
+        - path: /v3/api-docs
+          pathType: Prefix
+          service:
+            app: spring
+            environment: bluegreen-active
+            port: http
+        - path: /public
+          pathType: Prefix
+          service:
+            app: spring
+            environment: bluegreen-active
+            port: http
 redis:
   replicaCount: 1
   image:
