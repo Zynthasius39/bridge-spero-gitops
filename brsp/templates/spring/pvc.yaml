@@ -13,7 +13,7 @@ metadata:
     tier: backend
 spec:
   accessModes:
-    - ReadWriteMany
+    - ReadWriteOnce
   {{- if or (.Values.spring).storageClass (.Values.global).storageClass }}
   storageClassName: {{ (.Values.spring).storageClass | default (.Values.global).storageClass }}
   {{- end }}
