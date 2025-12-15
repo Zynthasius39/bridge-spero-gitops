@@ -61,7 +61,7 @@ next:
     repository: "ghcr.io/zynthasius31/brsp"
     tag:
       dev: dev-0.12.24
-      bluegreen: 0.12.23
+      bluegreen: 0.12.24
   resources:
     requests:
       memory: 512Mi
