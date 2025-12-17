@@ -45,6 +45,8 @@ spec:
           env:
             - name: BRSP_ENV
               value: dev
+            - name: NEXT_BACKEND_API_URL
+              value: {{ include "spring.service.url" (dict "root" . "env" "dev") }}
           {{- with .Values.configMaps.next }}
             - name: NEXT_PUBLIC_API_URL
               valueFrom:

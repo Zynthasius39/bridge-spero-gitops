@@ -38,7 +38,7 @@ Create chart name and version as used by the chart label.
 
 {{/* Service URi Suffix */}}
 {{- define "brsp.service.uriSuffix" -}}
-{{ if (.Values.global).namespace }}.{{ .Values.global.namespace }}.svc.cluster.local{{ end }}
+.{{ .Release.Namespace }}.svc.cluster.local
 {{- end -}}
 
 {{/* Environment */}}
@@ -105,4 +105,14 @@ redis-node
 
 {{- define "letsencrypt.issuerName" -}}
 {{ (.Values.letsencrypt).issuerName | default "letsencrypt" }}
+{{- end -}}
+
+{{/* Spring */}}
+
+{{- define "spring.service.name" -}}
+{{ ((.root.Values.spring).service).name | default "spring" }}-{{ .env }}
+{{- end -}}
+
+{{- define "spring.service.url" -}}
+http://{{ template "spring.service.name" . }}.{{ .root.Release.Namespace }}.svc.cluster.local
 {{- end -}}

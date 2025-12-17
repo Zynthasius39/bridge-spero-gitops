@@ -3,7 +3,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: spring-{{ $env }}
+  name: {{ include "spring.service.name" (dict "root" . "env" $env) }}
   labels:
     app.kubernetes.io/name: {{ template "brsp.name" . }}
     app.kubernetes.io/component: spring

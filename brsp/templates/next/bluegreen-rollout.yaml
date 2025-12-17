@@ -46,6 +46,8 @@ spec:
           env:
             - name: BRSP_ENV
               value: bluegreen
+            - name: NEXT_BACKEND_API_URL
+              value: {{ include "spring.service.url" (dict "root" . "env" "bluegreen-active") }}
           {{- with .Values.configMaps.next }}
             - name: NEXT_PUBLIC_API_URL
               valueFrom:
