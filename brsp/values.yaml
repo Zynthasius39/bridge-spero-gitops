@@ -9,8 +9,10 @@ postgres:
     owner: brsp
   resources:
     limits:
+      cpu: "500m"
       memory: 512Mi
     requests:
+      cpu: "500m"
       memory: 512Mi
 environment:
   - dev
@@ -34,8 +36,10 @@ spring:
       bluegreen: "0.9.10"
   resources:
     requests:
+      cpu: "1"
       memory: 2Gi
     limits:
+      cpu: "2"
       memory: 2Gi
   nodeSelector: {}
   tolerations: []
@@ -63,9 +67,11 @@ next:
       bluegreen: 0.12.24
   resources:
     requests:
-      memory: 512Mi
+      cpu: "500m"
+      memory: 1Gi
     limits:
-      memory: 512Mi
+      cpu: "1"
+      memory: 1Gi
   nodeSelector: {}
   tolerations: []
   affinity: {}
@@ -209,13 +215,17 @@ redis:
   resources:
     node:
       limits:
+        cpu: "500m"
         memory: 512Mi
       requests:
+        cpu: "500m"
         memory: 512Mi
     sentinel:
       limits:
+        cpu: "500m"
         memory: 128Mi
       requests:
+        cpu: "500m"
         memory: 128Mi
 configMaps:
   next: next
