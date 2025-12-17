@@ -69,6 +69,27 @@ spec:
         - name: spring-dev
           image: "{{ .Values.spring.image.repository }}:{{ .Values.spring.image.tag.dev }}"
           imagePullPolicy: {{ ((.Values.spring).image).pullPolicy | default "IfNotPresent" }}
+
+          startupProbe:
+            httpGet:
+              path: /api/v1/health
+              port: {{ .Values.spring.containerPort }}
+            failureThreshold: 30
+            periodSeconds: 5
+
+          readinessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: {{ .Values.spring.containerPort }}
+            periodSeconds: 5
+            failureThreshold: 3
+
+          livenessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: {{ .Values.spring.containerPort }}
+            periodSeconds: 10
+
           ports:
             - containerPort: {{ .Values.spring.containerPort }}
               name: http
