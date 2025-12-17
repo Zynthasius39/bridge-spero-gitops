@@ -1,6 +1,6 @@
 ---
 global: {}
-  # storageClass: jellybean-nfs-retain
+# storageClass: jellybean-nfs-retain
 postgres:
   imageName: "ghcr.io/cloudnative-pg/postgresql:18.1-202511240807-minimal-trixie@sha256:6f52f3adc69a4416300f5cabc511ed334b585fd5f8bb7df33bb0003202efea13"
   instances: 1
@@ -63,7 +63,7 @@ next:
   image:
     repository: "ghcr.io/zynthasius31/brsp"
     tag:
-      dev: dev-0.13.9
+      dev: dev-0.14.0
       bluegreen: 0.12.24
   resources:
     requests:
