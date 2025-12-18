@@ -8,6 +8,7 @@ ingress:
     - hosts:
         - bridgespero.com
         - prev.bridgespero.com
+      secretName: brsp-tls
   hosts:
     - host: prev.bridgespero.com
       environment: bluegreen-preview
