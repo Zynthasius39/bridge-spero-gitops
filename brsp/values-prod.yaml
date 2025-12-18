@@ -1,0 +1,49 @@
+environment:
+  - bluegreen
+environmentByService:
+  - bluegreen-active
+  - bluegreen-preview
+ingress:
+  tls:
+    - hosts:
+        - bridgespero.com
+        - prev.bridgespero.com
+  hosts:
+    - host: prev.bridgespero.com
+      environment: bluegreen-preview
+      paths:
+        - app: next
+          path: /
+          pathType: Prefix
+        - app: spring
+          path: /api/v1
+          pathType: Prefix
+        - app: spring
+          path: /swagger-ui
+          pathType: Prefix
+        - app: spring
+          path: /v3/api-docs
+          pathType: Prefix
+        - app: spring
+          path: /public
+          pathType: Prefix
+      portName: http
+    - host: bridgespero.com
+      environment: bluegreen-active
+      paths:
+        - app: next
+          path: /
+          pathType: Prefix
+        - app: spring
+          path: /api/v1
+          pathType: Prefix
+        - app: spring
+          path: /swagger-ui
+          pathType: Prefix
+        - app: spring
+          path: /v3/api-docs
+          pathType: Prefix
+        - app: spring
+          path: /public
+          pathType: Prefix
+      portName: http

@@ -1,3 +1,4 @@
+{{ if has "dev" .Values.environment }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -77,3 +78,4 @@ spec:
 {{- end }}
       imagePullSecrets:
         - name: {{ .Values.secrets.cr }}
+{{ end }}

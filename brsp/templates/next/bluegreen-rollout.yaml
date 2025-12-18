@@ -1,3 +1,4 @@
+{{ if and (has "bluegreen" .Values.environment) (has "bluegreen-active" .Values.environmentByService) (has "bluegreen-preview" .Values.environmentByService) }}
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
 metadata:
@@ -83,3 +84,4 @@ spec:
       activeService: next-bluegreen-active
       previewService: next-bluegreen-preview
       autoPromotionEnabled: {{ (.Values.next).autoPromotionEnabled | default "false" }}
+{{ end }}

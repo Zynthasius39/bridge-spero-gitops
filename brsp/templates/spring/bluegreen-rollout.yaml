@@ -1,3 +1,4 @@
+{{ if and (has "bluegreen" .Values.environment) (has "bluegreen-active" .Values.environmentByService) (has "bluegreen-preview" .Values.environmentByService) }}
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
 metadata:
@@ -144,3 +145,4 @@ spec:
       activeService: {{ include "spring.service.name" (dict "root" . "env" "bluegreen-active") }}
       previewService: {{ include "spring.service.name" (dict "root" . "env" "bluegreen-preview") }}
       autoPromotionEnabled: {{ (.Values.spring).autoPromotionEnabled | default "false" }}
+{{ end }}

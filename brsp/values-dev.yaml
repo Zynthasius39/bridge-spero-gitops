@@ -1,0 +1,29 @@
+environment:
+  - dev
+environmentByService:
+  - dev
+ingress:
+  tls:
+    - hosts:
+        - dev.bridgespero.com
+      secretName: brsp-tls
+  hosts:
+    - host: dev.bridgespero.com
+      environment: dev
+      paths:
+        - app: next
+          path: /
+          pathType: Prefix
+        - app: spring
+          path: /api/v1
+          pathType: Prefix
+        - app: spring
+          path: /swagger-ui
+          pathType: Prefix
+        - app: spring
+          path: /v3/api-docs
+          pathType: Prefix
+        - app: spring
+          path: /public
+          pathType: Prefix
+      portName: http

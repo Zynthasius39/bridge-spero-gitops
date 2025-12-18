@@ -1,3 +1,4 @@
+{{ if has "dev" .Values.environment }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -134,3 +135,4 @@ spec:
             claimName: spring-dev
         - name: empty-dir
           emptyDir: {}
+{{ end }}
