@@ -4,35 +4,41 @@ kind: Ingress
 metadata:
   name: ingress
   labels:
-    app.kubernetes.io/name: {{ template "brsp.name" . }}
-    helm.sh/chart: {{ template "brsp.chart" . }}
+    app.kubernetes.io/name: {{ include "brsp.name" . }}
+    helm.sh/chart: {{ include "brsp.chart" . }}
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
   annotations:
     {{- if (.Values.letsencrypt).enabled }}
-    cert-manager.io/issuer: {{ template "letsencrypt.issuerName" . }}
+    cert-manager.io/issuer: {{ include "letsencrypt.issuerName" . }}
     {{- end }}
     {{- with .Values.ingress.annotations }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
 spec:
-  {{- if .Values.ingress.hosts }}
+  {{- with .Values.ingress.hosts }}
   rules:
-    {{- range .Values.ingress.hosts }}
+    {{ range . }}
+    {{- $host := . -}}
     - host: {{ .host | quote }}
       http:
         paths:
-          {{- range .paths }}
-          - path: {{ .path }}
-            pathType: {{ .pathType }}
-            backend:
+          {{- range $host.paths }}
+          - backend:
               service:
-                name: {{ template "brsp.service.name" . }}
+                name: {{ .app }}-{{ $host.environment }}
                 port:
-                  name: {{ .service.port }}
+                  {{- if $host.portName }}
+                  name: {{ $host.portName }}
+                  {{- end }}
+                  {{- if $host.portNumber }}
+                  number: {{ $host.portNumber }}
+                  {{- end }}
+            path: {{ .path }}
+            pathType: {{ .pathType }}
           {{- end }}
-    {{- end }}
-  {{ end }}
+    {{ end }}
+  {{- end }}
   {{ if (.Values.ingress).tls }}
   tls:
     {{- range .Values.ingress.tls }}

@@ -82,4 +82,4 @@ spec:
     blueGreen: 
       activeService: next-bluegreen-active
       previewService: next-bluegreen-preview
-      autoPromotionEnabled: true
+      autoPromotionEnabled: {{ (.Values.next).autoPromotionEnabled | default "false" }}

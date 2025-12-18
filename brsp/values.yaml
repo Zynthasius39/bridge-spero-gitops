@@ -1,105 +1,131 @@
 ---
 global: {}
 # storageClass: jellybean-nfs-retain
-postgres:
-  imageName: "ghcr.io/cloudnative-pg/postgresql:18.1-202511240807-minimal-trixie@sha256:6f52f3adc69a4416300f5cabc511ed334b585fd5f8bb7df33bb0003202efea13"
-  instances: 1
-  initdb:
-    database: brsp
-    owner: brsp
-  resources:
-    limits:
-      cpu: "500m"
-      memory: 512Mi
-    requests:
-      cpu: "500m"
-      memory: 512Mi
 environment:
-  - dev
   - bluegreen
-environmentByService:
   - dev
-  - bluegreen-preview
+environmentByService:
   - bluegreen-active
+  - bluegreen-preview
+  - dev
 spring:
-  env:
-    STATIC_DIR: /usr/share/spring/static
-    PRIV_DIR: /usr/share/spring/priv
-    IS_DROP_FIRST: "false"
+  affinity: {}
   containerPort: 8080 # TODO: Add to application.yml/${SPRING_PORT}
   dataPath: /usr/share/spring
-  replicaCount: 1
+  env:
+    IS_DROP_FIRST: "false"
+    PRIV_DIR: /usr/share/spring/priv
+    STATIC_DIR: /usr/share/spring/static
   image:
     repository: "ghcr.io/zynthasius31/brsp-spring"
     tag:
-      dev: "dev-0.9.17"
       bluegreen: "0.9.10"
+      dev: "dev-0.9.17"
+  nodeSelector: {}
+  replicaCount: 1
   resources:
-    requests:
-      cpu: "1"
-      memory: 2Gi
     limits:
       cpu: "2"
       memory: 2Gi
-  nodeSelector: {}
-  tolerations: []
-  affinity: {}
+    requests:
+      cpu: "1"
+      memory: 2Gi
   service:
-    type: ClusterIP
     port: 80
+    type: ClusterIP
   storage:
-    dev: 1Gi
     bluegreen: 5Gi
+    dev: 1Gi
+  tolerations: []
 next:
+  affinity: {}
+  containerPort: 3000
   env:
-    dev.NEXT_PUBLIC_API_URL: https://dev.bridgespero.com/api/v1
-    dev.NEXT_PUBLIC_PAGE_URL: https://dev.bridgespero.com
     bluegreen.NEXT_PUBLIC_API_URL: https://bridgespero.com/api/v1
     bluegreen.NEXT_PUBLIC_PAGE_URL: https://brigespero.com
-  containerPort: 3000
-  replicas:
-    dev: 1
-    bluegreen: 1
+    dev.NEXT_PUBLIC_API_URL: https://dev.bridgespero.com/api/v1
+    dev.NEXT_PUBLIC_PAGE_URL: https://dev.bridgespero.com
   image:
     repository: "ghcr.io/zynthasius31/brsp"
     tag:
-      dev: dev-0.14.1
       bluegreen: 0.12.24
+      dev: dev-0.14.1
+  nodeSelector: {}
+  replicas:
+    bluegreen: 1
+    dev: 1
   resources:
-    requests:
-      cpu: "500m"
-      memory: 1Gi
     limits:
       cpu: "1"
       memory: 1Gi
-  nodeSelector: {}
-  tolerations: []
-  affinity: {}
+    requests:
+      cpu: "500m"
+      memory: 1Gi
   service:
-    type: ClusterIP
     port: 80
+    type: ClusterIP
+  tolerations: []
+postgres:
+  imageName: "ghcr.io/cloudnative-pg/postgresql:18.1-202511240807-minimal-trixie@sha256:6f52f3adc69a4416300f5cabc511ed334b585fd5f8bb7df33bb0003202efea13"
+  initdb:
+    database: brsp
+    owner: brsp
+  instances: 1
+  resources:
+    limits:
+      cpu: "500m"
+      memory: 512Mi
+    requests:
+      cpu: "500m"
+      memory: 512Mi
+redis:
+  image:
+    node:
+      repository: docker.io/library/redis
+      tag: latest
+    sentinel:
+      repository: docker.io/library/redis
+      tag: latest
+  replicaCount: 1
+  resources:
+    node:
+      limits:
+        cpu: "500m"
+        memory: 512Mi
+      requests:
+        cpu: "500m"
+        memory: 512Mi
+    sentinel:
+      limits:
+        cpu: "500m"
+        memory: 128Mi
+      requests:
+        cpu: "500m"
+        memory: 128Mi
 letsencrypt:
-  enabled: true
   email: bridgespero@gmail.com
+  enabled: true
   server: https://acme-v02.api.letsencrypt.org/directory
   # server: https://acme-staging-v02.api.letsencrypt.org/directory  # STAGING
 cloudflared:
+  affinity: {}
   enabled: false
-  replicaCount: 1
   image:
     repository: "docker.io/cloudflare/cloudflared"
     tag: 2025.11.1
+  nodeSelector: {}
+  replicaCount: 1
   resources:
     limits:
+      cpu: "500m"
       memory: 256Mi
     requests:
+      cpu: "500m"
       memory: 256Mi
-  nodeSelector: {}
   tolerations: []
-  affinity: {}
 ingress:
-  enabled: true
   annotations: {}
+  enabled: true
   tls:
     - hosts:
         - bridgespero.com
@@ -108,125 +134,62 @@ ingress:
       secretName: brsp-tls
   hosts:
     - host: dev.bridgespero.com
+      environment: dev
       paths:
-        - path: /
+        - app: next
+          path: /
           pathType: Prefix
-          service:
-            app: next
-            environment: dev
-            port: http
-        - path: /api/v1
+        - app: spring
+          path: /api/v1
           pathType: Prefix
-          service:
-            app: spring
-            environment: dev
-            port: http
-        - path: /swagger-ui
+        - app: spring
+          path: /swagger-ui
           pathType: Prefix
-          service:
-            app: spring
-            environment: dev
-            port: http
-        - path: /v3/api-docs
+        - app: spring
+          path: /v3/api-docs
           pathType: Prefix
-          service:
-            app: spring
-            environment: dev
-            port: http
-        - path: /public
+        - app: spring
+          path: /public
           pathType: Prefix
-          service:
-            app: spring
-            environment: dev
-            port: http
+      portName: http
     - host: prev.bridgespero.com
+      environment: bluegreen-preview
       paths:
-        - path: /
+        - app: next
+          path: /
           pathType: Prefix
-          service:
-            app: next
-            environment: bluegreen-preview
-            port: http
-        - path: /api/v1
+        - app: spring
+          path: /api/v1
           pathType: Prefix
-          service:
-            app: spring
-            environment: bluegreen-preview
-            port: http
-        - path: /swagger-ui
+        - app: spring
+          path: /swagger-ui
           pathType: Prefix
-          service:
-            app: spring
-            environment: bluegreen-preview
-            port: http
-        - path: /v3/api-docs
+        - app: spring
+          path: /v3/api-docs
           pathType: Prefix
-          service:
-            app: spring
-            environment: bluegreen-preview
-            port: http
-        - path: /public
+        - app: spring
+          path: /public
           pathType: Prefix
-          service:
-            app: spring
-            environment: bluegreen-preview
-            port: http
+      portName: http
     - host: bridgespero.com
+      environment: bluegreen-active
       paths:
-        - path: /
+        - app: next
+          path: /
           pathType: Prefix
-          service:
-            app: next
-            environment: bluegreen-active
-            port: http
-        - path: /api/v1
+        - app: spring
+          path: /api/v1
           pathType: Prefix
-          service:
-            app: spring
-            environment: bluegreen-active
-            port: http
-        - path: /swagger-ui
+        - app: spring
+          path: /swagger-ui
           pathType: Prefix
-          service:
-            app: spring
-            environment: bluegreen-active
-            port: http
-        - path: /v3/api-docs
+        - app: spring
+          path: /v3/api-docs
           pathType: Prefix
-          service:
-            app: spring
-            environment: bluegreen-active
-            port: http
-        - path: /public
+        - app: spring
+          path: /public
           pathType: Prefix
-          service:
-            app: spring
-            environment: bluegreen-active
-            port: http
-redis:
-  replicaCount: 1
-  image:
-    node:
-      repository: docker.io/library/redis
-      tag: latest
-    sentinel:
-      repository: docker.io/library/redis
-      tag: latest
-  resources:
-    node:
-      limits:
-        cpu: "500m"
-        memory: 512Mi
-      requests:
-        cpu: "500m"
-        memory: 512Mi
-    sentinel:
-      limits:
-        cpu: "500m"
-        memory: 128Mi
-      requests:
-        cpu: "500m"
-        memory: 128Mi
+      portName: http
 configMaps:
   next: next
   spring: spring

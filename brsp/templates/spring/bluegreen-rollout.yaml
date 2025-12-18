@@ -141,6 +141,6 @@ spec:
           emptyDir: {}
   strategy:
     blueGreen: 
-      activeService: spring-bluegreen-active
-      previewService: spring-bluegreen-preview
-      autoPromotionEnabled: true
+      activeService: {{ include "spring.service.name" (dict "root" . "env" "bluegreen-active") }}
+      previewService: {{ include "spring.service.name" (dict "root" . "env" "bluegreen-preview") }}
+      autoPromotionEnabled: {{ (.Values.spring).autoPromotionEnabled | default "false" }}
