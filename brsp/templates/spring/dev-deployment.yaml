@@ -75,13 +75,13 @@ spec:
               path: /api/v1/health
               port: {{ .Values.spring.containerPort }}
             failureThreshold: 30
-            periodSeconds: 5
+            periodSeconds: 30
 
           readinessProbe:
             httpGet:
               path: /api/v1/health
               port: {{ .Values.spring.containerPort }}
-            periodSeconds: 5
+            periodSeconds: 10
             failureThreshold: 3
 
           livenessProbe:
