@@ -10,7 +10,7 @@ environmentByService:
   - dev
 spring:
   affinity: {}
-  containerPort: 8080 # TODO: Add to application.yml/${SPRING_PORT}
+  containerPort: 8080
   dataPath: /usr/share/spring
   env:
     IS_DROP_FIRST: "false"

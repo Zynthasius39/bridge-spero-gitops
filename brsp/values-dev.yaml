@@ -1,7 +1,11 @@
+global:
+  storageClass: jellybean-nfs-retain
 environment:
   - dev
 environmentByService:
   - dev
+cloudflared:
+  enabled: true
 ingress:
   tls:
     - hosts:
