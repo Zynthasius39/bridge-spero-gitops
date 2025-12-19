@@ -28,7 +28,7 @@ spring:
       cpu: "2"
       memory: 2Gi
     requests:
-      cpu: "1"
+      cpu: "2"
       memory: 2Gi
   service:
     port: 80
@@ -56,10 +56,10 @@ next:
     dev: 1
   resources:
     limits:
-      cpu: "1"
+      cpu: "2"
       memory: 1Gi
     requests:
-      cpu: "500m"
+      cpu: "2"
       memory: 1Gi
   service:
     port: 80
@@ -73,7 +73,7 @@ postgres:
   instances: 1
   resources:
     limits:
-      cpu: "500m"
+      cpu: "1"
       memory: 512Mi
     requests:
       cpu: "500m"
@@ -90,7 +90,7 @@ redis:
   resources:
     node:
       limits:
-        cpu: "500m"
+        cpu: "1"
         memory: 512Mi
       requests:
         cpu: "500m"
