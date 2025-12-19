@@ -48,7 +48,7 @@ next:
   image:
     repository: "ghcr.io/zynthasius31/brsp"
     tag:
-      bluegreen: 0.12.24
+      bluegreen: 0.14.7
       dev: dev-0.14.7
   nodeSelector: {}
   replicas:
