@@ -49,7 +49,7 @@ next:
     repository: "ghcr.io/zynthasius31/brsp"
     tag:
       bluegreen: 0.12.24
-      dev: dev-0.14.4
+      dev: dev-0.14.5
   nodeSelector: {}
   replicas:
     bluegreen: 1
