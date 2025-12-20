@@ -26,9 +26,9 @@ spring:
   resources:
     limits:
       cpu: "2"
-      memory: 2Gi
+      memory: 4Gi
     requests:
-      cpu: "2"
+      cpu: "1"
       memory: 2Gi
   service:
     port: 80
@@ -56,11 +56,11 @@ next:
     dev: 1
   resources:
     limits:
-      cpu: "2"
+      cpu: "1"
       memory: 1Gi
     requests:
-      cpu: "2"
-      memory: 1Gi
+      cpu: "300m"
+      memory: 512Mi
   service:
     port: 80
     type: ClusterIP
@@ -73,11 +73,11 @@ postgres:
   instances: 1
   resources:
     limits:
-      cpu: "1"
-      memory: 512Mi
+      cpu: "2"
+      memory: 8Gi
     requests:
-      cpu: "500m"
-      memory: 512Mi
+      cpu: "1"
+      memory: 4Gi
 redis:
   image:
     node:
@@ -90,18 +90,18 @@ redis:
   resources:
     node:
       limits:
-        cpu: "1"
-        memory: 512Mi
+        cpu: "600m"
+        memory: 1Gi
       requests:
-        cpu: "500m"
-        memory: 512Mi
+        cpu: "250m"
+        memory: 640Mi
     sentinel:
       limits:
-        cpu: "500m"
-        memory: 128Mi
+        cpu: "100m"
+        memory: 256Mi
       requests:
-        cpu: "500m"
-        memory: 128Mi
+        cpu: "50m"
+        memory: 64Mi
 letsencrypt:
   email: bridgespero@gmail.com
   enabled: true
@@ -117,11 +117,11 @@ cloudflared:
   replicaCount: 1
   resources:
     limits:
-      cpu: "500m"
+      cpu: "200m"
       memory: 256Mi
     requests:
-      cpu: "500m"
-      memory: 256Mi
+      cpu: "50m"
+      memory: 64Mi
   tolerations: []
 ingress:
   annotations: {}
