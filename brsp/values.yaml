@@ -20,7 +20,7 @@ spring:
     repository: "ghcr.io/zynthasius31/brsp-spring"
     tag:
       bluegreen: "0.9.19"
-      dev: "dev-0.9.21"
+      dev: "dev-0.9.22"
   nodeSelector: {}
   replicaCount: 1
   resources:
