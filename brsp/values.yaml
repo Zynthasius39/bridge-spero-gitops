@@ -10,6 +10,7 @@ environmentByService:
   - dev
 spring:
   affinity: {}
+  autoPromotionEnabled: true
   containerPort: 8080
   dataPath: /usr/share/spring
   env:
@@ -39,6 +40,7 @@ spring:
   tolerations: []
 next:
   affinity: {}
+  autoPromotionEnabled: true
   containerPort: 3000
   env:
     bluegreen.NEXT_PUBLIC_API_URL: https://bridgespero.com/api/v1
