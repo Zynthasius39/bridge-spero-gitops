@@ -106,7 +106,7 @@ redis:
         memory: 64Mi
 letsencrypt:
   email: bridgespero@gmail.com
-  enabled: true
+  enabled: false
   server: https://acme-v02.api.letsencrypt.org/directory
   # server: https://acme-staging-v02.api.letsencrypt.org/directory  # STAGING
 cloudflared:
@@ -128,12 +128,6 @@ cloudflared:
 ingress:
   annotations: {}
   enabled: true
-  tls:
-    - hosts:
-        - bridgespero.com
-        - prev.bridgespero.com
-        - dev.bridgespero.com
-      secretName: brsp-tls
   hosts:
     - host: dev.bridgespero.com
       environment: dev
