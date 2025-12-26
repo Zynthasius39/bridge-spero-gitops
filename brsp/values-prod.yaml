@@ -1,4 +1,5 @@
-global: {}
+global:
+  storageClass: null
 environment:
   - bluegreen
 environmentByService:
