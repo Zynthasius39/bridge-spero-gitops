@@ -4,6 +4,8 @@ environment:
 environmentByService:
   - bluegreen-active
   - bluegreen-preview
+cloudflared:
+  enabled: false
 ingress:
   tls:
     - hosts:
