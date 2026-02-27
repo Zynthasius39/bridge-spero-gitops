@@ -47,9 +47,9 @@ spec:
               [[ -n "$PRIV_DIR" ]] && { mkdir -pv "$PRIV_DIR"; chown -R 111:111 "$PRIV_DIR"; }
               until
                 echo 'Waiting for postgres...' &&
-                nc -vz -w 2 {{ template "postgres.service.name" . }}-$BRSP_ENV-rw{{ template "brsp.service.uriSuffix" . }} 5432 &&
+                nc -vz -w 2 {{ template "postgres.service.name" . }}-$BRSP_ENV-rw 5432 &&
                 echo 'Waiting for redis...' &&
-                nc -vz -w 2 {{ template "redis.service.name" . }}-$BRSP_ENV{{ template "brsp.service.uriSuffix" . }} 6379
+                nc -vz -w 2 {{ template "redis.service.name" . }}-$BRSP_ENV 6379
               do
                 echo 'Looping forever...'
                 sleep 2
