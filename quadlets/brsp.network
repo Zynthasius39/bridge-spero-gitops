@@ -1,0 +1,7 @@
+[Unit]
+Description=BridgeSpero Network
+
+[Network]
+Driver=bridge
+NetworkName=brsp
+Options=metric=200

@@ -1,0 +1,11 @@
+[Unit]
+Description=BridgeSpero Redis container
+Requires=brsp-network.service
+After=brsp-network.service
+
+[Container]
+ContainerName=brsp-redis
+Image=docker.io/library/redis:8.6.1-alpine
+Memory=1G
+Network=brsp
+PodmanArgs=--cpus 0.6

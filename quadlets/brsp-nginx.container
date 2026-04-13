@@ -1,0 +1,13 @@
+[Unit]
+Description=BridgeSpero Nginx container
+Requires=brsp-network.service brsp-next.service brsp-spring.service
+After=brsp-network.service brsp-next.service brsp-spring.service
+
+[Container]
+ContainerName=brsp-nginx
+Image=docker.io/library/nginx:1-alpine
+Volume=/var/lib/containers/data/brsp/bridgespero.com.conf:/etc/nginx/conf.d/bridgespero.com.conf:ro,Z
+Memory=1G
+Network=brsp
+Network=macv50:ip=10.0.50.36,mac=00:0C:30:0A:32:24
+PodmanArgs=--cpus 1

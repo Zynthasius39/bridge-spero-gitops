@@ -1,0 +1,13 @@
+[Unit]
+Description=BridgeSpero Postgres container
+Requires=brsp-network.service
+After=brsp-network.service
+
+[Container]
+ContainerName=brsp-postgres
+EnvironmentFile=/var/lib/containers/data/brsp/env
+Image=docker.io/library/postgres:18-alpine
+Volume=/var/lib/containers/data/brsp/db:/var/lib/postgresql/data:Z
+Memory=2G
+Network=brsp
+PodmanArgs=--cpus 1

@@ -1,0 +1,33 @@
+# Next
+NODE_OPTIONS=--max-old-space-size=800
+NEXT_PUBLIC_PAGE_URL=https://bridgespero.com
+NEXT_PUBLIC_API_URL=https://bridgespero.com/api/v1
+
+# Spring
+DATASOURCE_URL=jdbc:postgresql://brsp-postgres:5432/brsp
+DATASOURCE_USERNAME=brsp
+REPLICA_DATASOURCE_URL=jdbc:postgresql://brsp-postgres:5432/brsp
+REDIS_ADDRESS=redis://brsp-redis:6379
+ZOOM_REDIRECT_URI=https://bridgespero.com/api/v1/zoom/oauth/callback
+SPRING_PORT=8080
+IS_DROP_FIRST=false
+PRIV_DIR=/usr/share/spring/priv
+STATIC_DIR=/usr/share/spring/static
+SUPER_ADMIN_EMAIL=test@gmail.com
+SUPER_ADMIN_PASSWORD=s3cr3tp4ssw0rd
+JWT_SECRET=jwts3cr3tkey
+ZOOM_CLIENT_ID=z00mcl1ent1d
+ZOOM_CLIENT_SECRET=z00mcl1ents3cr3t
+ZOOM_WEBHOOK_SECRET=z00mwebh00ks3cr3t
+# secrets
+DATASOURCE_PASSWORD=s3cr3tp4ssw0rd
+# initSpring
+POSTGRES_HOST=brsp-postgres
+REDIS_HOST=brsp-redis
+
+# Postgres
+POSTGRES_USER=brsp
+POSTGRES_PASSWORD=s3cr3tp4ssw0rd
+
+# Kubernetes
+# BRSP_ENV=bluegreen

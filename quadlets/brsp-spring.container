@@ -1,0 +1,12 @@
+[Unit]
+Description=BridgeSpero Spring container
+Requires=brsp-network.service brsp-redis.service brsp-postgres.service
+After=brsp-network.service brsp-redis.service brsp-postgres.service
+
+[Container]
+ContainerName=brsp-spring
+EnvironmentFile=/var/lib/containers/data/brsp/env
+Image=ghcr.io/zynthasius31/brsp-spring:0.9.23-docker
+Memory=2G
+Network=brsp
+PodmanArgs=--cpus 2
